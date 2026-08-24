@@ -1,7 +1,9 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
-const TOKEN_KEY = "joineazy_access_token";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "VITE_API_URL=https://backend-delta-dun-31.vercel.app/api/v1";
+const TOKEN_KEY = "12wedfgzxdrftgyhujctvygbhujtvybunij";
 
 let unauthorizedHandler = null;
 
