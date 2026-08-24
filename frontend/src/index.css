@@ -1,0 +1,172 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #14324a;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(15, 118, 110, 0.18),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(200, 95, 44, 0.14),
+      transparent 28%
+    ),
+    #f4efe7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  * {
+    @apply border-brand-line;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-brand-sand font-sans text-brand-ink;
+    margin: 0;
+    background:
+      radial-gradient(
+        circle at top left,
+        rgba(15, 118, 110, 0.18),
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at bottom right,
+        rgba(200, 95, 44, 0.14),
+        transparent 28%
+      ),
+      #f4efe7;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button {
+    font: inherit;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply rounded-[28px] border border-white/60 bg-white/70 shadow-float backdrop-blur;
+  }
+
+  .page-shell {
+    @apply mx-auto w-full max-w-[1380px] px-4 py-8 sm:px-6 lg:px-8;
+  }
+
+  .shell-grid {
+    @apply grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start;
+  }
+
+  .console-sidebar {
+    @apply lg:sticky lg:top-6;
+  }
+
+  .console-card {
+    @apply overflow-hidden rounded-[28px] border border-[#dde1dd] bg-[#f4efe9]/80 shadow-[0_18px_55px_rgba(20,50,74,0.12)] backdrop-blur;
+  }
+
+  .console-header {
+    @apply bg-[#132c3c] px-5 py-7 text-white sm:px-6;
+  }
+
+  .console-brand {
+    @apply text-[0.7rem] font-semibold tracking-[0.32em] text-[#dff8f1];
+  }
+
+  .console-title {
+    @apply mt-4 font-display text-[2.2rem] leading-[1.05] tracking-[-0.04em] text-white;
+  }
+
+  .console-email {
+    @apply mt-3 text-sm text-slate-200;
+  }
+
+  .console-nav-wrap {
+    @apply space-y-5 px-4 py-5 sm:px-5;
+  }
+
+  .console-nav {
+    @apply grid gap-2 sm:grid-cols-2 lg:grid-cols-1;
+  }
+
+  .console-nav-link {
+    @apply flex items-center justify-center rounded-2xl border border-transparent px-4 py-3 text-sm font-semibold text-slate-600 transition-all duration-200 hover:border-[#d7d0c4] hover:bg-white hover:text-brand-ink lg:justify-start;
+  }
+
+  .console-nav-link--active {
+    @apply border-[#d7d0c4] bg-[#132c3c] text-white shadow-[0_12px_24px_rgba(19,44,60,0.18)];
+  }
+
+  .profile-card {
+    @apply rounded-[24px] border border-[#dfe3db] bg-white/75 p-4 shadow-sm;
+  }
+
+  .profile-label {
+    @apply text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-slate-500;
+  }
+
+  .profile-name {
+    @apply mt-3 text-xl font-semibold text-brand-ink;
+  }
+
+  .profile-role {
+    @apply mt-1 text-xs font-medium uppercase tracking-[0.28em] text-slate-500;
+  }
+
+  .logout-button {
+    @apply mt-4 w-full rounded-2xl border border-[#d7d0c4] bg-[#f7f2ee] px-4 py-3 text-sm font-semibold text-brand-ink transition hover:border-brand-clay hover:text-brand-clay;
+  }
+
+  .main-panel {
+    @apply space-y-6;
+  }
+
+  .workspace-banner {
+    @apply flex flex-col justify-between gap-4 rounded-[28px] border border-[#dde1dd] bg-[#f4f1ec]/90 px-5 py-5 shadow-[0_18px_45px_rgba(20,50,74,0.08)] sm:px-6 lg:flex-row lg:items-center;
+  }
+
+  .workspace-copy {
+    @apply max-w-3xl;
+  }
+
+  .workspace-label {
+    @apply text-[0.68rem] font-semibold uppercase tracking-[0.32em] text-brand-teal;
+  }
+
+  .workspace-title {
+    @apply mt-2 font-display text-[2.15rem] leading-[1.05] tracking-[-0.04em] text-brand-ink sm:text-[2.5rem];
+  }
+
+  .workspace-badge {
+    @apply rounded-[20px] border border-[#d7d0c4] bg-white/75 px-4 py-3 text-sm text-slate-600 shadow-sm lg:max-w-xs;
+  }
+
+  .section-title {
+    @apply font-display text-3xl font-semibold tracking-tight text-brand-ink;
+  }
+}

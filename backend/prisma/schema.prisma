@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum SubmissionStatus {
+  PENDING
+  CONFIRMED
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  name               String
+  email              String       @unique
+  password           String
+  role               Role         @default(STUDENT)
+  groupsCreated      Group[]      @relation("GroupCreator")
+  memberships        GroupMember[]
+  assignmentsCreated Assignment[] @relation("AssignmentCreator")
+  submissions        Submission[] @relation("SubmissionConfirmer")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([role])
+}
+
+model Group {
+  id          String            @id @default(cuid())
+  name        String
+  createdById String
+  createdBy   User              @relation("GroupCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members     GroupMember[]
+  assignments AssignmentGroup[]
+  submissions Submission[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([createdById])
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  studentId String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+
+  @@unique([groupId, studentId])
+  @@index([studentId])
+  @@index([groupId])
+}
+
+model Assignment {
+  id               String            @id @default(cuid())
+  title            String
+  description      String
+  dueDate          DateTime
+  oneDriveLink     String
+  createdById      String
+  createdBy        User              @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignmentGroups AssignmentGroup[]
+  submissions      Submission[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([createdById])
+  @@index([dueDate])
+}
+
+model AssignmentGroup {
+  id           String     @id @default(cuid())
+  assignmentId String
+  groupId      String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  group        Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime   @default(now())
+
+  @@unique([assignmentId, groupId])
+  @@index([assignmentId])
+  @@index([groupId])
+}
+
+model Submission {
+  id            String           @id @default(cuid())
+  assignmentId  String
+  groupId       String
+  confirmedById String?
+  confirmedBy   User?            @relation("SubmissionConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedAt   DateTime?
+  status        SubmissionStatus @default(PENDING)
+  assignment    Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  group         Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([assignmentId, groupId])
+  @@index([assignmentId])
+  @@index([groupId])
+  @@index([status])
+}
