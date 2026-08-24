@@ -17,7 +17,7 @@ app.use(
 app.use(helmet());
 app.use(express.json());
 
-app.get("/api/v1/health", (_req, res) => {
+app.get("/", (_req, res) => {
   res.status(200).json({
     success: true,
     message: "Backend is healthy",
