@@ -1,2 +1,0 @@
--- AssignmentType was added by the earlier 20260827090000 migration.
--- This migration is intentionally kept as a no-op to preserve migration history.
