@@ -64,11 +64,6 @@ function AppShell() {
                   : "Track group progress and confirm assignment submissions"}
               </h2>
             </div>
-
-            <div className="workspace-badge">
-              Assessment build using React, Tailwind, Express, Prisma, and
-              PostgreSQL.
-            </div>
           </header>
 
           <Outlet />

@@ -5,7 +5,9 @@ import toast from "react-hot-toast";
 import AssignmentForm from "../../components/shared/AssignmentForm";
 import PageHeader from "../../components/shared/PageHeader";
 import { assignmentService } from "../../services/assignmentService";
+import { courseService } from "../../services/courseService";
 import { getErrorMessage } from "../../utils/format";
+import { useAsyncData } from "../../hooks/useAsyncData";
 
 function AdminAssignmentsCreatePage() {
   const navigate = useNavigate();
@@ -14,7 +16,14 @@ function AdminAssignmentsCreatePage() {
     description: "",
     dueDate: "",
     oneDriveLink: "",
+    submissionType: "GROUP",
+    courseId: "",
   });
+  const { data: courses = [], loading: coursesLoading } = useAsyncData(
+    () => courseService.getCourses(),
+    [],
+    [],
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (event) => {
@@ -57,7 +66,11 @@ function AdminAssignmentsCreatePage() {
         onSubmit={handleSubmit}
         submitLabel="Create assignment"
         submitting={submitting}
+        courses={courses}
       />
+      {coursesLoading ? (
+        <p className="text-sm text-slate-500">Loading courses...</p>
+      ) : null}
     </div>
   );
 }

@@ -17,6 +17,7 @@ const createAssignment = catchAsync(async (req, res) => {
 
 const updateAssignment = catchAsync(async (req, res) => {
   const assignment = await assignmentService.updateAssignment({
+    user: req.user,
     assignmentId: req.params.id,
     payload: req.body,
   });
@@ -24,6 +25,18 @@ const updateAssignment = catchAsync(async (req, res) => {
   sendSuccess(res, {
     message: "Assignment updated successfully",
     data: assignment,
+  });
+});
+
+const deleteAssignment = catchAsync(async (req, res) => {
+  await assignmentService.deleteAssignment({
+    user: req.user,
+    assignmentId: req.params.id,
+  });
+
+  sendSuccess(res, {
+    message: "Assignment deleted successfully",
+    data: null,
   });
 });
 
@@ -81,6 +94,17 @@ const confirmSubmission = catchAsync(async (req, res) => {
   });
 });
 
+const submitAssignment = catchAsync(async (req, res) => {
+  const submission = await assignmentService.submitAssignment({
+    user: req.user,
+    assignmentId: req.params.id,
+  });
+  sendSuccess(res, {
+    message: "Submission marked as submitted",
+    data: submission,
+  });
+});
+
 const getSubmissionStatus = catchAsync(async (req, res) => {
   const submissionStatus = await assignmentService.getSubmissionStatus({
     user: req.user,
@@ -94,13 +118,29 @@ const getSubmissionStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getAssignmentSubmissions = catchAsync(async (req, res) => {
+  const submissions = await assignmentService.getAssignmentSubmissions({
+    user: req.user,
+    assignmentId: req.params.id,
+    status: req.query.status,
+  });
+
+  sendSuccess(res, {
+    message: "Assignment submissions fetched successfully",
+    data: submissions,
+  });
+});
+
 module.exports = {
   createAssignment,
   updateAssignment,
+  deleteAssignment,
   getAssignments,
   getAssignmentById,
   assignToAllGroups,
   assignToSelectedGroups,
   confirmSubmission,
+  submitAssignment,
   getSubmissionStatus,
+  getAssignmentSubmissions,
 };

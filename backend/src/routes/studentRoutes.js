@@ -9,5 +9,6 @@ router.use(authenticate(), authorize("STUDENT"));
 
 router.get("/assignments", studentController.getAssignments);
 router.get("/dashboard", studentController.getDashboard);
+router.get("/courses", studentController.getCourses);
 
 module.exports = router;

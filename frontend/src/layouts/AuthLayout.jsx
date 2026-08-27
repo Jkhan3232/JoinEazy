@@ -11,26 +11,15 @@ function AuthLayout() {
               <p className="text-sm font-semibold uppercase tracking-[0.35em] text-brand-teal">
                 Joineazy Assessment
               </p>
-              <h1 className="max-w-2xl font-display text-5xl leading-tight text-brand-ink sm:text-6xl">
-                Student, group, and assignment operations in one interview-ready workspace.
+              <h1 className="max-w-xl font-display text-5xl leading-tight text-brand-ink sm:text-6xl">
+                Student, group, and assignment operations in one interview-ready
+                workspace.
               </h1>
               <p className="max-w-xl text-lg text-slate-600">
-                A focused dashboard for admin oversight and student submission workflows, designed
-                around the exact demo flow in the technical assessment.
+                A focused dashboard for admin oversight and student submission
+                workflows, designed around the exact demo flow in the technical
+                assessment.
               </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                ["Roles", "Student and admin workspaces"],
-                ["Tracking", "Assignment, group, and submission status"],
-                ["Security", "JWT auth, role checks, hashed passwords"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-3xl border border-white/70 bg-white/75 p-5">
-                  <p className="text-sm uppercase tracking-[0.3em] text-slate-500">{label}</p>
-                  <p className="mt-3 text-lg font-semibold text-brand-ink">{value}</p>
-                </div>
-              ))}
             </div>
           </div>
         </section>

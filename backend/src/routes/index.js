@@ -5,6 +5,7 @@ const groupRoutes = require("./groupRoutes");
 const assignmentRoutes = require("./assignmentRoutes");
 const studentRoutes = require("./studentRoutes");
 const adminRoutes = require("./adminRoutes");
+const courseRoutes = require("./courseRoutes");
 
 const router = express.Router();
 
@@ -13,5 +14,6 @@ router.use("/groups", groupRoutes);
 router.use("/assignments", assignmentRoutes);
 router.use("/student", studentRoutes);
 router.use("/admin", adminRoutes);
+router.use("/courses", courseRoutes);
 
 module.exports = router;

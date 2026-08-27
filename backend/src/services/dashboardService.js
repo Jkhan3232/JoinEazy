@@ -8,8 +8,18 @@ const {
   safeUserSelect,
 } = require("./sharedService");
 
-const mapStudentAssignment = (assignment, group) => {
-  const submission = assignment.submissions[0] || null;
+const completedStatuses = [
+  SubmissionStatus.CONFIRMED,
+  SubmissionStatus.ACKNOWLEDGED,
+];
+
+const mapStudentAssignment = (assignment, group, studentId) => {
+  const submission =
+    assignment.submissions.find((item) =>
+      assignment.submissionType === "INDIVIDUAL"
+        ? item.studentId === studentId
+        : item.groupId === group?.id,
+    ) || null;
 
   return {
     id: assignment.id,
@@ -17,10 +27,9 @@ const mapStudentAssignment = (assignment, group) => {
     description: assignment.description,
     dueDate: assignment.dueDate,
     oneDriveLink: assignment.oneDriveLink,
-    group: {
-      id: group.id,
-      name: group.name,
-    },
+    submissionType: assignment.submissionType,
+    isGroupLeader: Boolean(group && group.createdById === studentId),
+    group: group ? { id: group.id, name: group.name } : null,
     submissionStatus: submission?.status || SubmissionStatus.PENDING,
     confirmedAt: submission?.confirmedAt || null,
     confirmedBy: submission?.confirmedBy || null,
@@ -29,38 +38,34 @@ const mapStudentAssignment = (assignment, group) => {
 
 const getStudentAssignments = async (studentId) => {
   const membership = await getCurrentGroupMembership(studentId);
-
-  if (!membership) {
-    return {
-      group: null,
-      totals: {
-        totalAssignedAssignments: 0,
-        completedAssignments: 0,
-        pendingAssignments: 0,
-        completionPercentage: 0,
-      },
-      assignments: [],
-    };
-  }
+  const enrollments = await prisma.studentCourse.findMany({
+    where: { studentId },
+    select: { courseId: true },
+  });
+  const courseIds = enrollments.map((enrollment) => enrollment.courseId);
 
   const assignments = await prisma.assignment.findMany({
     where: {
-      assignmentGroups: {
-        some: {
-          groupId: membership.groupId,
-        },
-      },
+      OR: [
+        ...(membership
+          ? [{ assignmentGroups: { some: { groupId: membership.groupId } } }]
+          : []),
+        ...(courseIds.length
+          ? [{ submissionType: "INDIVIDUAL", courseId: { in: courseIds } }]
+          : []),
+      ],
     },
     include: {
+      course: true,
       submissions: {
-        where: {
-          groupId: membership.groupId,
-        },
         include: {
           confirmedBy: {
             select: safeUserSelect,
           },
         },
+        where: membership
+          ? { OR: [{ groupId: membership.groupId }, { studentId }] }
+          : { studentId },
       },
     },
     orderBy: {
@@ -69,24 +74,28 @@ const getStudentAssignments = async (studentId) => {
   });
 
   const mappedAssignments = assignments.map((assignment) =>
-    mapStudentAssignment(assignment, membership.group),
+    mapStudentAssignment(assignment, membership?.group || null, studentId),
   );
-  const completedAssignments = mappedAssignments.filter(
-    (assignment) => assignment.submissionStatus === SubmissionStatus.CONFIRMED,
+  const completedAssignments = mappedAssignments.filter((assignment) =>
+    [SubmissionStatus.CONFIRMED, "ACKNOWLEDGED"].includes(
+      assignment.submissionStatus,
+    ),
   ).length;
   const totalAssignedAssignments = mappedAssignments.length;
 
   return {
-    group: {
-      id: membership.group.id,
-      name: membership.group.name,
-      createdBy: membership.group.createdBy,
-      members: membership.group.members.map((member) => ({
-        id: member.id,
-        joinedAt: member.joinedAt,
-        student: member.student,
-      })),
-    },
+    group: membership
+      ? {
+          id: membership.group.id,
+          name: membership.group.name,
+          createdBy: membership.group.createdBy,
+          members: membership.group.members.map((member) => ({
+            id: member.id,
+            joinedAt: member.joinedAt,
+            student: member.student,
+          })),
+        }
+      : null,
     totals: {
       totalAssignedAssignments,
       completedAssignments,
@@ -98,6 +107,50 @@ const getStudentAssignments = async (studentId) => {
     },
     assignments: mappedAssignments,
   };
+};
+
+const getStudentCourses = async (studentId) => {
+  const membership = await getCurrentGroupMembership(studentId);
+  const courses = await prisma.course.findMany({
+    where: { enrollments: { some: { studentId } } },
+    include: {
+      professor: { select: safeUserSelect },
+      assignments: {
+        include: {
+          submissions: true,
+        },
+        orderBy: { dueDate: "asc" },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return courses.map((course) => {
+    const completed = course.assignments.filter((assignment) =>
+      assignment.submissions.some(
+        (submission) =>
+          submission.status &&
+          completedStatuses.includes(submission.status) &&
+          (assignment.submissionType === "INDIVIDUAL"
+            ? submission.studentId === studentId
+            : submission.groupId === membership?.groupId),
+      ),
+    ).length;
+    return {
+      id: course.id,
+      name: course.name,
+      code: course.code,
+      description: course.description,
+      professor: course.professor,
+      assignmentCount: course.assignments.length,
+      completedAssignments: completed,
+      pendingAssignments: course.assignments.length - completed,
+      completionPercentage: calculateCompletionPercentage(
+        completed,
+        course.assignments.length,
+      ),
+    };
+  });
 };
 
 const getStudentDashboard = async (studentId) => {
@@ -131,14 +184,30 @@ const getAdminDashboard = async () => {
     totalSubmissions,
     confirmedSubmissions,
     pendingSubmissions,
+    submittedSubmissions,
+    acknowledgedSubmissions,
     recentAssignments,
   ] = await Promise.all([
     prisma.user.count({ where: { role: Role.STUDENT } }),
     prisma.group.count(),
     prisma.assignment.count(),
     prisma.submission.count(),
-    prisma.submission.count({ where: { status: SubmissionStatus.CONFIRMED } }),
+    prisma.submission.count({
+      where: {
+        status: {
+          in: [SubmissionStatus.CONFIRMED, SubmissionStatus.ACKNOWLEDGED],
+        },
+      },
+    }),
     prisma.submission.count({ where: { status: SubmissionStatus.PENDING } }),
+    prisma.submission.count({ where: { status: SubmissionStatus.SUBMITTED } }),
+    prisma.submission.count({
+      where: {
+        status: {
+          in: [SubmissionStatus.ACKNOWLEDGED, SubmissionStatus.CONFIRMED],
+        },
+      },
+    }),
     prisma.assignment.findMany({
       include: {
         assignmentGroups: true,
@@ -158,6 +227,8 @@ const getAdminDashboard = async () => {
     totalSubmissions,
     confirmedSubmissions,
     pendingSubmissions,
+    submittedSubmissions,
+    acknowledgedSubmissions,
     completionPercentage: calculateCompletionPercentage(
       confirmedSubmissions,
       totalSubmissions,
@@ -167,8 +238,10 @@ const getAdminDashboard = async () => {
       title: assignment.title,
       dueDate: assignment.dueDate,
       assignedGroups: assignment.assignmentGroups.length,
-      confirmedSubmissions: assignment.submissions.filter(
-        (submission) => submission.status === SubmissionStatus.CONFIRMED,
+      confirmedSubmissions: assignment.submissions.filter((submission) =>
+        [SubmissionStatus.CONFIRMED, SubmissionStatus.ACKNOWLEDGED].includes(
+          submission.status,
+        ),
       ).length,
       totalSubmissions: assignment.submissions.length,
     })),
@@ -203,11 +276,7 @@ const getAdminAnalytics = async () => {
             group: true,
           },
         },
-        submissions: {
-          where: {
-            status: SubmissionStatus.CONFIRMED,
-          },
-        },
+        submissions: true,
       },
       orderBy: {
         createdAt: "asc",
@@ -222,8 +291,9 @@ const getAdminAnalytics = async () => {
   const confirmedSubmissionCount = assignments.reduce(
     (count, assignment) =>
       count +
-      assignment.submissions.filter((submission) => submission.status === SubmissionStatus.CONFIRMED)
-        .length,
+      assignment.submissions.filter((submission) =>
+        completedStatuses.includes(submission.status),
+      ).length,
     0,
   );
 
@@ -237,8 +307,8 @@ const getAdminAnalytics = async () => {
       ),
     },
     groupWiseCompletion: groups.map((group) => {
-      const confirmedCount = group.submissions.filter(
-        (submission) => submission.status === SubmissionStatus.CONFIRMED,
+      const confirmedCount = group.submissions.filter((submission) =>
+        completedStatuses.includes(submission.status),
       ).length;
       const totalCount = group.submissions.length;
 
@@ -251,8 +321,8 @@ const getAdminAnalytics = async () => {
       };
     }),
     assignmentWiseCompletion: assignments.map((assignment) => {
-      const confirmedCount = assignment.submissions.filter(
-        (submission) => submission.status === SubmissionStatus.CONFIRMED,
+      const confirmedCount = assignment.submissions.filter((submission) =>
+        completedStatuses.includes(submission.status),
       ).length;
       const totalCount = assignment.submissions.length;
 
@@ -280,7 +350,9 @@ const getAdminAnalytics = async () => {
               name: currentMembership.group.name,
             }
           : null,
-        confirmedByStudent: student.submissions.length,
+        confirmedByStudent: student.submissions.filter((submission) =>
+          completedStatuses.includes(submission.status),
+        ).length,
         totalAssignedToGroup,
       };
     }),
@@ -309,8 +381,8 @@ const getAdminGroups = async () => {
   });
 
   return groups.map((group) => {
-    const confirmedSubmissions = group.submissions.filter(
-      (submission) => submission.status === SubmissionStatus.CONFIRMED,
+    const confirmedSubmissions = group.submissions.filter((submission) =>
+      completedStatuses.includes(submission.status),
     ).length;
 
     return {
@@ -360,8 +432,8 @@ const getAdminStudents = async () => {
   return students.map((student) => {
     const membership = student.memberships[0] || null;
     const groupSubmissions = membership?.group.submissions || [];
-    const confirmedGroupSubmissions = groupSubmissions.filter(
-      (submission) => submission.status === SubmissionStatus.CONFIRMED,
+    const confirmedGroupSubmissions = groupSubmissions.filter((submission) =>
+      completedStatuses.includes(submission.status),
     ).length;
 
     return {
@@ -377,16 +449,23 @@ const getAdminStudents = async () => {
         : null,
       totalGroupAssignments: groupSubmissions.length,
       groupConfirmedAssignments: confirmedGroupSubmissions,
-      personallyConfirmedAssignments: student.submissions.length,
-      latestConfirmedSubmission: student.submissions
-        .slice()
-        .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt))[0] || null,
+      personallyConfirmedAssignments: student.submissions.filter((submission) =>
+        completedStatuses.includes(submission.status),
+      ).length,
+      latestConfirmedSubmission:
+        student.submissions
+          .slice()
+          .sort(
+            (left, right) =>
+              new Date(right.updatedAt) - new Date(left.updatedAt),
+          )[0] || null,
     };
   });
 };
 
 module.exports = {
   getStudentAssignments,
+  getStudentCourses,
   getStudentDashboard,
   getAdminDashboard,
   getAdminAnalytics,

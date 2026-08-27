@@ -9,6 +9,7 @@ const assignmentInclude = {
   createdBy: {
     select: safeUserSelect,
   },
+  course: true,
   assignmentGroups: {
     include: {
       group: true,
@@ -23,6 +24,9 @@ const assignmentInclude = {
         select: safeUserSelect,
       },
       group: true,
+      student: {
+        select: safeUserSelect,
+      },
     },
     orderBy: {
       createdAt: "desc",
@@ -49,6 +53,8 @@ const formatAssignmentSummary = (assignment) => ({
   description: assignment.description,
   dueDate: assignment.dueDate,
   oneDriveLink: assignment.oneDriveLink,
+  submissionType: assignment.submissionType,
+  course: assignment.course,
   createdAt: assignment.createdAt,
   updatedAt: assignment.updatedAt,
   createdBy: assignment.createdBy,
@@ -65,12 +71,22 @@ const formatAssignmentSummary = (assignment) => ({
       id: submission.group.id,
       name: submission.group.name,
     },
+    student: submission.student,
     confirmedBy: submission.confirmedBy,
   })),
 });
 
 const createAssignment = async ({ user, payload }) => {
   const validatedPayload = normalizeAssignmentPayload(payload);
+
+  if (validatedPayload.courseId) {
+    const course = await prisma.course.findUnique({
+      where: { id: validatedPayload.courseId },
+    });
+    if (!course) throw new AppError("Course not found", 404);
+    if (course.professorId !== user.id)
+      throw new AppError("You do not own this course", 403);
+  }
 
   const assignment = await prisma.assignment.create({
     data: {
@@ -83,9 +99,22 @@ const createAssignment = async ({ user, payload }) => {
   return formatAssignmentSummary(assignment);
 };
 
-const updateAssignment = async ({ assignmentId, payload }) => {
-  await ensureAssignmentExists(assignmentId);
+const updateAssignment = async ({ user, assignmentId, payload }) => {
+  const existingAssignment = await ensureAssignmentExists(assignmentId);
   const validatedPayload = normalizeAssignmentPayload(payload);
+
+  if (existingAssignment.createdBy.id !== user.id) {
+    throw new AppError("You do not own this assignment", 403);
+  }
+  if (validatedPayload.courseId) {
+    const course = await prisma.course.findUnique({
+      where: { id: validatedPayload.courseId },
+    });
+    if (!course) throw new AppError("Course not found", 404);
+    if (course.professorId !== user.id) {
+      throw new AppError("You do not own this course", 403);
+    }
+  }
 
   const assignment = await prisma.assignment.update({
     where: { id: assignmentId },
@@ -94,6 +123,20 @@ const updateAssignment = async ({ assignmentId, payload }) => {
   });
 
   return formatAssignmentSummary(assignment);
+};
+
+const deleteAssignment = async ({ user, assignmentId }) => {
+  const assignment = await ensureAssignmentExists(assignmentId);
+
+  if (assignment.createdBy.id !== user.id) {
+    throw new AppError("You do not own this assignment", 403);
+  }
+
+  await prisma.assignment.delete({
+    where: { id: assignmentId },
+  });
+
+  return { id: assignmentId };
 };
 
 const getAssignments = async () => {
@@ -114,6 +157,44 @@ const getAssignmentById = async ({ assignmentId, user }) => {
     return formatAssignmentSummary(assignment);
   }
 
+  if (assignment.submissionType === "INDIVIDUAL" && assignment.courseId) {
+    const enrollment = await prisma.studentCourse.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId: user.id,
+          courseId: assignment.courseId,
+        },
+      },
+    });
+    if (!enrollment)
+      throw new AppError("You are not enrolled in this course", 403);
+    const submission = assignment.submissions.find(
+      (item) => item.studentId === user.id,
+    );
+    return {
+      id: assignment.id,
+      title: assignment.title,
+      description: assignment.description,
+      dueDate: assignment.dueDate,
+      oneDriveLink: assignment.oneDriveLink,
+      submissionType: assignment.submissionType,
+      course: assignment.course,
+      isGroupLeader: false,
+      submission: submission
+        ? {
+            id: submission.id,
+            status: submission.status,
+            confirmedAt: submission.confirmedAt,
+            confirmedBy: submission.confirmedBy,
+          }
+        : {
+            status: SubmissionStatus.PENDING,
+            confirmedAt: null,
+            confirmedBy: null,
+          },
+    };
+  }
+
   const membership = await getCurrentGroupMembership(user.id, { required: true });
   const isAssignedToGroup = assignment.assignmentGroups.some(
     (item) => item.groupId === membership.groupId,
@@ -123,7 +204,11 @@ const getAssignmentById = async ({ assignmentId, user }) => {
     throw new AppError("This assignment is not assigned to your group", 403);
   }
 
-  const submission = assignment.submissions.find((item) => item.groupId === membership.groupId);
+  const submission = assignment.submissions.find((item) =>
+    assignment.submissionType === "INDIVIDUAL"
+      ? item.studentId === user.id
+      : item.groupId === membership.groupId,
+  );
 
   return {
     id: assignment.id,
@@ -131,6 +216,8 @@ const getAssignmentById = async ({ assignmentId, user }) => {
     description: assignment.description,
     dueDate: assignment.dueDate,
     oneDriveLink: assignment.oneDriveLink,
+    submissionType: assignment.submissionType,
+    isGroupLeader: membership.group.createdById === user.id,
     group: {
       id: membership.group.id,
       name: membership.group.name,
@@ -154,11 +241,15 @@ const assignToGroups = async (assignmentId, rawGroupIds) => {
   await ensureAssignmentExists(assignmentId);
   const groupIds = [...new Set(rawGroupIds)];
 
+  const assignment = await ensureAssignmentExists(assignmentId);
   const groups = await prisma.group.findMany({
     where: {
       id: {
         in: groupIds,
       },
+    },
+    include: {
+      members: true,
     },
   });
 
@@ -166,22 +257,43 @@ const assignToGroups = async (assignmentId, rawGroupIds) => {
     throw new AppError("One or more groups do not exist", 404);
   }
 
-  const assignmentGroupResult = await prisma.assignmentGroup.createMany({
-    data: groupIds.map((groupId) => ({
-      assignmentId,
-      groupId,
-    })),
-    skipDuplicates: true,
-  });
+  const { assignmentGroupResult, submissionResult } = await prisma.$transaction(
+    async (transaction) => {
+      const createdAssignmentGroups =
+        await transaction.assignmentGroup.createMany({
+          data: groupIds.map((groupId) => ({
+            assignmentId,
+            groupId,
+          })),
+          skipDuplicates: true,
+        });
 
-  const submissionResult = await prisma.submission.createMany({
-    data: groupIds.map((groupId) => ({
-      assignmentId,
-      groupId,
-      status: SubmissionStatus.PENDING,
-    })),
-    skipDuplicates: true,
-  });
+      const submissionData =
+        assignment.submissionType === "INDIVIDUAL"
+          ? groups.flatMap((group) =>
+              group.members.map((member) => ({
+                assignmentId,
+                groupId: group.id,
+                studentId: member.studentId,
+                status: SubmissionStatus.PENDING,
+              })),
+            )
+          : groupIds.map((groupId) => ({
+              assignmentId,
+              groupId,
+              status: SubmissionStatus.PENDING,
+            }));
+      const createdSubmissions = await transaction.submission.createMany({
+        data: submissionData,
+        skipDuplicates: true,
+      });
+
+      return {
+        assignmentGroupResult: createdAssignmentGroups,
+        submissionResult: createdSubmissions,
+      };
+    },
+  );
 
   return {
     assignmentId,
@@ -218,8 +330,73 @@ const assignToSelectedGroups = async ({ assignmentId, payload }) => {
 };
 
 const confirmSubmission = async ({ user, assignmentId }) => {
+  const assignment = await ensureAssignmentExists(assignmentId);
+
+  if (assignment.submissionType === "INDIVIDUAL") {
+    if (assignment.courseId) {
+      const enrollment = await prisma.studentCourse.findUnique({
+        where: {
+          studentId_courseId: {
+            studentId: user.id,
+            courseId: assignment.courseId,
+          },
+        },
+      });
+      if (!enrollment) {
+        throw new AppError("You are not enrolled in this course", 403);
+      }
+    }
+
+    const existingSubmission = await prisma.submission.findUnique({
+      where: { assignmentId_studentId: { assignmentId, studentId: user.id } },
+    });
+
+    if (!existingSubmission) {
+      throw new AppError("Individual submission not found", 404);
+    }
+    if (
+      [SubmissionStatus.CONFIRMED, SubmissionStatus.ACKNOWLEDGED].includes(
+        existingSubmission.status,
+      )
+    ) {
+      throw new AppError("This submission has already been confirmed", 409);
+    }
+
+    const submission = await prisma.submission.update({
+      where: { id: existingSubmission.id },
+      data: {
+        status: SubmissionStatus.ACKNOWLEDGED,
+        confirmedById: user.id,
+        confirmedAt: new Date(),
+      },
+      include: {
+        confirmedBy: { select: safeUserSelect },
+        group: true,
+        assignment: true,
+      },
+    });
+
+    return {
+      id: submission.id,
+      status: submission.status,
+      confirmedAt: submission.confirmedAt,
+      assignment: {
+        id: submission.assignment.id,
+        title: submission.assignment.title,
+      },
+      group: { id: submission.group.id, name: submission.group.name },
+      confirmedBy: submission.confirmedBy,
+    };
+  }
+
   const membership = await getCurrentGroupMembership(user.id, { required: true });
-  await ensureAssignmentExists(assignmentId);
+
+  if (membership.group.createdById !== user.id) {
+    throw new AppError(
+      "Only the group leader can confirm this submission",
+      403,
+    );
+  }
 
   const assignmentGroup = await prisma.assignmentGroup.findUnique({
     where: {
@@ -234,29 +411,23 @@ const confirmSubmission = async ({ user, assignmentId }) => {
     throw new AppError("This assignment is not assigned to your group", 403);
   }
 
-  const existingSubmission = await prisma.submission.findUnique({
-    where: {
-      assignmentId_groupId: {
-        assignmentId,
-        groupId: membership.groupId,
-      },
-    },
+  const existingSubmission = await prisma.submission.findFirst({
+    where: { assignmentId, groupId: membership.groupId, studentId: null },
   });
 
-  if (existingSubmission?.status === SubmissionStatus.CONFIRMED) {
+  if (
+    [SubmissionStatus.CONFIRMED, SubmissionStatus.ACKNOWLEDGED].includes(
+      existingSubmission?.status,
+    )
+  ) {
     throw new AppError("This submission has already been confirmed", 409);
   }
 
   const submission = existingSubmission
     ? await prisma.submission.update({
-        where: {
-          assignmentId_groupId: {
-            assignmentId,
-            groupId: membership.groupId,
-          },
-        },
+        where: { id: existingSubmission.id },
         data: {
-          status: SubmissionStatus.CONFIRMED,
+          status: SubmissionStatus.ACKNOWLEDGED,
           confirmedById: user.id,
           confirmedAt: new Date(),
         },
@@ -272,7 +443,7 @@ const confirmSubmission = async ({ user, assignmentId }) => {
         data: {
           assignmentId,
           groupId: membership.groupId,
-          status: SubmissionStatus.CONFIRMED,
+          status: SubmissionStatus.ACKNOWLEDGED,
           confirmedById: user.id,
           confirmedAt: new Date(),
         },
@@ -301,18 +472,95 @@ const confirmSubmission = async ({ user, assignmentId }) => {
   };
 };
 
+const submitAssignment = async ({ user, assignmentId }) => {
+  const assignment = await ensureAssignmentExists(assignmentId);
+  if (assignment.submissionType === "INDIVIDUAL" && assignment.courseId) {
+    const enrollment = await prisma.studentCourse.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId: user.id,
+          courseId: assignment.courseId,
+        },
+      },
+    });
+    if (!enrollment)
+      throw new AppError("You are not enrolled in this course", 403);
+  }
+  if (assignment.submissionType === "GROUP") {
+    const membership = await getCurrentGroupMembership(user.id, {
+      required: true,
+    });
+    if (
+      !assignment.assignmentGroups.some(
+        (item) => item.groupId === membership.groupId,
+      )
+    ) {
+      throw new AppError("This assignment is not assigned to your group", 403);
+    }
+  }
+  const where =
+    assignment.submissionType === "INDIVIDUAL"
+      ? { assignmentId_studentId: { assignmentId, studentId: user.id } }
+      : {
+          assignmentId: assignmentId,
+          groupId: (
+            await getCurrentGroupMembership(user.id, { required: true })
+          ).groupId,
+          studentId: null,
+        };
+  const submission =
+    assignment.submissionType === "INDIVIDUAL"
+      ? await prisma.submission.findUnique({ where })
+      : await prisma.submission.findFirst({ where });
+  if (!submission)
+    throw new AppError("Submission not found for this assignment", 404);
+  if (
+    [SubmissionStatus.CONFIRMED, SubmissionStatus.ACKNOWLEDGED].includes(
+      submission.status,
+    )
+  ) {
+    throw new AppError("This submission has already been acknowledged", 409);
+  }
+  return prisma.submission.update({
+    where: { id: submission.id },
+    data: { status: SubmissionStatus.SUBMITTED },
+  });
+};
+
 const getSubmissionStatus = async ({ user, assignmentId, groupId }) => {
   await ensureAssignmentExists(assignmentId);
 
   if (user.role === "STUDENT") {
-    const membership = await getCurrentGroupMembership(user.id, { required: true });
-    const submission = await prisma.submission.findUnique({
-      where: {
-        assignmentId_groupId: {
-          assignmentId,
-          groupId: membership.groupId,
-        },
-      },
+    const assignment = await ensureAssignmentExists(assignmentId);
+
+    if (assignment.submissionType === "INDIVIDUAL") {
+      const submission = await prisma.submission.findUnique({
+        where: { assignmentId_studentId: { assignmentId, studentId: user.id } },
+        include: { confirmedBy: { select: safeUserSelect } },
+      });
+
+      return {
+        group: null,
+        submission: submission
+          ? {
+              id: submission.id,
+              status: submission.status,
+              confirmedAt: submission.confirmedAt,
+              confirmedBy: submission.confirmedBy,
+            }
+          : {
+              status: SubmissionStatus.PENDING,
+              confirmedAt: null,
+              confirmedBy: null,
+            },
+      };
+    }
+
+    const membership = await getCurrentGroupMembership(user.id, {
+      required: true,
+    });
+    const submission = await prisma.submission.findFirst({
+      where: { assignmentId, groupId: membership.groupId, studentId: null },
       include: {
         confirmedBy: {
           select: safeUserSelect,
@@ -341,16 +589,11 @@ const getSubmissionStatus = async ({ user, assignmentId, groupId }) => {
   }
 
   const whereClause = groupId
-    ? {
-        assignmentId_groupId: {
-          assignmentId,
-          groupId,
-        },
-      }
+    ? { assignmentId, groupId, studentId: null }
     : null;
 
   if (whereClause) {
-    const submission = await prisma.submission.findUnique({
+    const submission = await prisma.submission.findFirst({
       where: whereClause,
       include: {
         confirmedBy: {
@@ -407,13 +650,50 @@ const getSubmissionStatus = async ({ user, assignmentId, groupId }) => {
   };
 };
 
+const getAssignmentSubmissions = async ({ user, assignmentId, status }) => {
+  const assignment = await ensureAssignmentExists(assignmentId);
+
+  if (assignment.createdBy.id !== user.id) {
+    throw new AppError("You do not own this assignment", 403);
+  }
+
+  const allowedStatuses = ["PENDING", "SUBMITTED", "ACKNOWLEDGED", "CONFIRMED"];
+  if (status && !allowedStatuses.includes(status)) {
+    throw new AppError("Invalid submission status", 400);
+  }
+
+  const submissions = await prisma.submission.findMany({
+    where: { assignmentId, ...(status ? { status } : {}) },
+    include: {
+      group: true,
+      student: { select: safeUserSelect },
+      confirmedBy: { select: safeUserSelect },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return submissions.map((submission) => ({
+    id: submission.id,
+    status: submission.status,
+    confirmedAt: submission.confirmedAt,
+    group: submission.group
+      ? { id: submission.group.id, name: submission.group.name }
+      : null,
+    student: submission.student,
+    confirmedBy: submission.confirmedBy,
+  }));
+};
+
 module.exports = {
   createAssignment,
   updateAssignment,
+  deleteAssignment,
   getAssignments,
   getAssignmentById,
   assignToAllGroups,
   assignToSelectedGroups,
   confirmSubmission,
+  submitAssignment,
   getSubmissionStatus,
+  getAssignmentSubmissions,
 };

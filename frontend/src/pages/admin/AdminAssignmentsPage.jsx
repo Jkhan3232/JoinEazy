@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import EmptyState from "../../components/shared/EmptyState";
 import Loader from "../../components/shared/Loader";
@@ -8,17 +10,43 @@ import Badge from "../../components/ui/Badge";
 import Card from "../../components/ui/Card";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import { assignmentService } from "../../services/assignmentService";
-import { formatDate } from "../../utils/format";
+import { formatDate, getErrorMessage } from "../../utils/format";
 
 function AdminAssignmentsPage() {
-  const { data, loading, error } = useAsyncData(() => assignmentService.getAssignments(), [], []);
+  const { data, loading, error, reload } = useAsyncData(
+    () => assignmentService.getAssignments(),
+    [],
+    [],
+  );
+  const [deletingId, setDeletingId] = useState(null);
+
+  const handleDelete = async (assignment) => {
+    if (
+      !window.confirm(
+        `Delete assignment "${assignment.title}"? This cannot be undone.`,
+      )
+    )
+      return;
+    setDeletingId(assignment.id);
+    try {
+      await assignmentService.deleteAssignment(assignment.id);
+      toast.success("Assignment deleted successfully.");
+      await reload();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) {
     return <Loader label="Loading assignments..." />;
   }
 
   if (error) {
-    return <EmptyState title="Unable to load assignments" description={error} />;
+    return (
+      <EmptyState title="Unable to load assignments" description={error} />
+    );
   }
 
   return (
@@ -43,27 +71,48 @@ function AdminAssignmentsPage() {
                   <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">
                     Due {formatDate(assignment.dueDate)}
                   </p>
-                  <h3 className="mt-2 font-display text-3xl text-brand-ink">{assignment.title}</h3>
-                  <p className="mt-3 text-slate-600">{assignment.description}</p>
+                  <h3 className="mt-2 font-display text-3xl text-brand-ink">
+                    {assignment.title}
+                  </h3>
+                  <p className="mt-3 text-slate-600">
+                    {assignment.description}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   <Badge>{assignment.assignedGroups.length} groups</Badge>
-                  <Badge>{assignment.submissions.filter((item) => item.status === "CONFIRMED").length} confirmed</Badge>
+                  <Badge>
+                    {
+                      assignment.submissions.filter(
+                        (item) => item.status === "CONFIRMED",
+                      ).length
+                    }{" "}
+                    confirmed
+                  </Badge>
                 </div>
               </div>
 
               <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
                 <div className="rounded-3xl border border-brand-line bg-white/80 p-4 text-sm text-slate-600">
                   <p>Created by {assignment.createdBy.name}</p>
-                  <p className="mt-2">OneDrive link: {assignment.oneDriveLink}</p>
+                  <p className="mt-2">
+                    OneDrive link: {assignment.oneDriveLink}
+                  </p>
                   <p className="mt-2">
                     Submission records: {assignment.submissions.length}
                   </p>
                 </div>
-                <Link to={`/admin/assignments/${assignment.id}/edit`}>
-                  <Button variant="primary">Edit and allocate</Button>
-                </Link>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link to={`/admin/assignments/${assignment.id}/edit`}>
+                    <Button variant="primary">Edit and allocate</Button>
+                  </Link>
+                  <Button
+                    variant="danger"
+                    onClick={() => handleDelete(assignment)}
+                    disabled={deletingId === assignment.id}>
+                    {deletingId === assignment.id ? "Deleting..." : "Delete"}
+                  </Button>
+                </div>
               </div>
             </Card>
           ))

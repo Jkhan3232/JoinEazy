@@ -12,6 +12,7 @@ import Badge from "../../components/ui/Badge";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import { assignmentService } from "../../services/assignmentService";
 import { dashboardService } from "../../services/dashboardService";
+import { courseService } from "../../services/courseService";
 import { formatDateTime, getErrorMessage } from "../../utils/format";
 
 const toLocalDateTime = (value) => {
@@ -42,11 +43,18 @@ function AdminAssignmentsEditPage() {
     description: "",
     dueDate: "",
     oneDriveLink: "",
+    submissionType: "GROUP",
   });
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [assigningAll, setAssigningAll] = useState(false);
   const [assigningSelected, setAssigningSelected] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const { data: courses = [] } = useAsyncData(
+    () => courseService.getCourses(),
+    [],
+    [],
+  );
 
   useEffect(() => {
     if (!data?.assignment) {
@@ -58,6 +66,8 @@ function AdminAssignmentsEditPage() {
       description: data.assignment.description,
       dueDate: toLocalDateTime(data.assignment.dueDate),
       oneDriveLink: data.assignment.oneDriveLink,
+      submissionType: data.assignment.submissionType || "GROUP",
+      courseId: data.assignment.course?.id || "",
     });
   }, [data]);
 
@@ -151,40 +161,54 @@ function AdminAssignmentsEditPage() {
           onSubmit={handleSubmit}
           submitLabel="Save changes"
           submitting={saving}
+          courses={courses}
           title="Update assignment details"
         />
 
         <Card className="space-y-5">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">Allocation</p>
-            <h3 className="mt-2 font-display text-3xl text-brand-ink">Assign to groups</h3>
+            <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">
+              Allocation
+            </p>
+            <h3 className="mt-2 font-display text-3xl text-brand-ink">
+              Assign to groups
+            </h3>
             <p className="mt-2 text-slate-600">
-              Allocating creates the assignment-group relationship and pending submission records.
+              Allocating creates the assignment-group relationship and pending
+              submission records.
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button variant="secondary" onClick={handleAssignAll} disabled={assigningAll}>
+            <Button
+              variant="secondary"
+              onClick={handleAssignAll}
+              disabled={assigningAll}>
               {assigningAll ? "Assigning..." : "Assign to all groups"}
             </Button>
-            <Button variant="primary" onClick={handleAssignSelected} disabled={assigningSelected}>
+            <Button
+              variant="primary"
+              onClick={handleAssignSelected}
+              disabled={assigningSelected}>
               {assigningSelected ? "Assigning..." : "Assign selected groups"}
             </Button>
           </div>
 
           <div className="grid gap-3">
             {data.groups.map((group) => {
-              const assigned = data.assignment.assignedGroups.some((item) => item.id === group.id);
+              const assigned = data.assignment.assignedGroups.some(
+                (item) => item.id === group.id,
+              );
 
               return (
                 <label
                   key={group.id}
-                  className="flex items-center justify-between rounded-2xl border border-brand-line bg-white/80 px-4 py-3"
-                >
+                  className="flex items-center justify-between rounded-2xl border border-brand-line bg-white/80 px-4 py-3">
                   <div>
                     <p className="font-semibold text-brand-ink">{group.name}</p>
                     <p className="text-sm text-slate-500">
-                      {group.members.length} members • {group.completionPercentage}% complete
+                      {group.members.length} members •{" "}
+                      {group.completionPercentage}% complete
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -204,30 +228,57 @@ function AdminAssignmentsEditPage() {
       </div>
 
       <Card>
-        <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">Submission status</p>
+        <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">
+          Submission status
+        </p>
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          aria-label="Filter submission status"
+          className="mt-4 min-h-11 rounded-2xl border border-brand-line bg-white/80 px-4 text-sm text-brand-ink outline-none focus:border-brand-teal">
+          <option value="">All statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="SUBMITTED">Submitted</option>
+          <option value="ACKNOWLEDGED">Acknowledged</option>
+          <option value="CONFIRMED">Confirmed</option>
+        </select>
         <div className="mt-5 grid gap-4">
-          {data.assignment.submissions.length ? (
-            data.assignment.submissions.map((submission) => (
-              <div
-                key={submission.id}
-                className="rounded-3xl border border-brand-line bg-white/80 p-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="font-semibold text-brand-ink">{submission.group.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Confirmed at: {formatDateTime(submission.confirmedAt)}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Confirmed by: {submission.confirmedBy?.name || "Awaiting confirmation"}
-                    </p>
+          {data.assignment.submissions.filter(
+            (submission) => !statusFilter || submission.status === statusFilter,
+          ).length ? (
+            data.assignment.submissions
+              .filter(
+                (submission) =>
+                  !statusFilter || submission.status === statusFilter,
+              )
+              .map((submission) => (
+                <div
+                  key={submission.id}
+                  className="rounded-3xl border border-brand-line bg-white/80 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-brand-ink">
+                        {submission.group?.name ||
+                          submission.student?.name ||
+                          "Individual student"}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Confirmed at: {formatDateTime(submission.confirmedAt)}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Confirmed by:{" "}
+                        {submission.confirmedBy?.name ||
+                          "Awaiting confirmation"}
+                      </p>
+                    </div>
+                    <Badge>{submission.status}</Badge>
                   </div>
-                  <Badge>{submission.status}</Badge>
                 </div>
-              </div>
-            ))
+              ))
           ) : (
-            <p className="text-slate-600">No groups have been assigned to this assignment yet.</p>
+            <p className="text-slate-600">
+              No groups have been assigned to this assignment yet.
+            </p>
           )}
         </div>
       </Card>

@@ -8,6 +8,7 @@ import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
 import Badge from "../../components/ui/Badge";
+import ProgressBar from "../../components/ui/ProgressBar";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import { assignmentService } from "../../services/assignmentService";
 import { formatDate, formatDateTime, getErrorMessage } from "../../utils/format";
@@ -39,8 +40,11 @@ function StudentAssignmentsPage() {
     setSubmitting(true);
 
     try {
+      if (selectedAssignment.submissionStatus === "PENDING") {
+        await assignmentService.submitAssignment(selectedAssignment.id);
+      }
       await assignmentService.confirmSubmission(selectedAssignment.id);
-      toast.success("Submission confirmed successfully.");
+      toast.success("Submission acknowledged successfully.");
       closeModal();
       await reload();
     } catch (err) {
@@ -58,38 +62,37 @@ function StudentAssignmentsPage() {
     return <EmptyState title="Unable to load assignments" description={error} />;
   }
 
-  if (!data.group) {
-    return (
-      <EmptyState
-        title="No active group found"
-        description="Join or create a group first. Assignment allocation is based on your current group membership."
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Assignments"
-        title={`Assignments for ${data.group.name}`}
+        title={
+          data.group ? `Assignments for ${data.group.name}` : "Your assignments"
+        }
         description="Open the OneDrive folder, upload your work externally, then use the two-step confirmation flow below."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Assigned</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+            Assigned
+          </p>
           <p className="mt-3 text-4xl font-extrabold text-brand-ink">
             {data.totals.totalAssignedAssignments}
           </p>
         </Card>
         <Card>
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Completed</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+            Completed
+          </p>
           <p className="mt-3 text-4xl font-extrabold text-brand-ink">
             {data.totals.completedAssignments}
           </p>
         </Card>
         <Card>
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Pending</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">
+            Pending
+          </p>
           <p className="mt-3 text-4xl font-extrabold text-brand-ink">
             {data.totals.pendingAssignments}
           </p>
@@ -105,17 +108,53 @@ function StudentAssignmentsPage() {
                   <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">
                     Due {formatDate(assignment.dueDate)}
                   </p>
-                  <h3 className="mt-2 font-display text-3xl text-brand-ink">{assignment.title}</h3>
-                  <p className="mt-3 text-slate-600">{assignment.description}</p>
+                  <h3 className="mt-2 font-display text-3xl text-brand-ink">
+                    {assignment.title}
+                  </h3>
+                  <p className="mt-3 text-slate-600">
+                    {assignment.description}
+                  </p>
                 </div>
                 <Badge>{assignment.submissionStatus}</Badge>
               </div>
 
               <div className="rounded-3xl border border-brand-line bg-white/80 p-4 text-sm text-slate-600">
-                <p>Group: {assignment.group.name}</p>
-                <p className="mt-2">Confirmed at: {formatDateTime(assignment.confirmedAt)}</p>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <span>
+                    {assignment.submissionType === "INDIVIDUAL"
+                      ? "Individual submission"
+                      : "Group submission"}
+                  </span>
+                  <span className="font-semibold text-brand-ink">
+                    {["CONFIRMED", "ACKNOWLEDGED"].includes(
+                      assignment.submissionStatus,
+                    )
+                      ? "100%"
+                      : "0%"}
+                  </span>
+                </div>
+                <ProgressBar
+                  value={
+                    ["CONFIRMED", "ACKNOWLEDGED"].includes(
+                      assignment.submissionStatus,
+                    )
+                      ? 100
+                      : assignment.submissionStatus === "SUBMITTED"
+                        ? 60
+                        : 0
+                  }
+                />
+                {assignment.group ? (
+                  <p>Group: {assignment.group.name}</p>
+                ) : (
+                  <p>Individual assignment</p>
+                )}
                 <p className="mt-2">
-                  Confirmed by: {assignment.confirmedBy?.name || "Awaiting confirmation"}
+                  Confirmed at: {formatDateTime(assignment.confirmedAt)}
+                </p>
+                <p className="mt-2">
+                  Confirmed by:{" "}
+                  {assignment.confirmedBy?.name || "Awaiting confirmation"}
                 </p>
               </div>
 
@@ -124,18 +163,27 @@ function StudentAssignmentsPage() {
                   href={assignment.oneDriveLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-2xl bg-brand-ink px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-900"
-                >
+                  className="rounded-2xl bg-brand-ink px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-slate-900">
                   Open OneDrive
                 </a>
                 <Button
                   variant="secondary"
                   onClick={() => startConfirmation(assignment)}
-                  disabled={assignment.submissionStatus === "CONFIRMED"}
-                >
-                  {assignment.submissionStatus === "CONFIRMED"
+                  disabled={
+                    ["CONFIRMED", "ACKNOWLEDGED"].includes(
+                      assignment.submissionStatus,
+                    ) ||
+                    (assignment.submissionType === "GROUP" &&
+                      !assignment.isGroupLeader)
+                  }>
+                  {["CONFIRMED", "ACKNOWLEDGED"].includes(
+                    assignment.submissionStatus,
+                  )
                     ? "Submission confirmed"
-                    : "I have submitted"}
+                    : assignment.submissionType === "GROUP" &&
+                        !assignment.isGroupLeader
+                      ? "Waiting for group leader"
+                      : "I have submitted"}
                 </Button>
               </div>
             </Card>
@@ -151,13 +199,12 @@ function StudentAssignmentsPage() {
       {selectedAssignment ? (
         <Modal
           title={step === 1 ? "Upload confirmation" : "Final confirmation"}
-          onClose={closeModal}
-        >
+          onClose={closeModal}>
           {step === 1 ? (
             <div className="space-y-4">
               <p className="text-slate-600">
-                Have you uploaded <strong>{selectedAssignment.title}</strong> to the provided
-                OneDrive location?
+                Have you uploaded <strong>{selectedAssignment.title}</strong> to
+                the provided OneDrive location?
               </p>
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={closeModal}>
@@ -171,14 +218,17 @@ function StudentAssignmentsPage() {
           ) : (
             <div className="space-y-4">
               <p className="text-slate-600">
-                Are you sure? Your group submission will be marked as confirmed and visible on the
-                admin dashboard.
+                Are you sure? This submission will be acknowledged and visible
+                on the professor dashboard.
               </p>
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={closeModal}>
                   Cancel
                 </Button>
-                <Button variant="secondary" onClick={confirmSubmission} disabled={submitting}>
+                <Button
+                  variant="secondary"
+                  onClick={confirmSubmission}
+                  disabled={submitting}>
                   {submitting ? "Confirming..." : "Confirm submission"}
                 </Button>
               </div>
