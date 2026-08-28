@@ -75,6 +75,14 @@ function AppRouter() {
           <Route path="/professor/dashboard" element={<AdminDashboardPage />} />
           <Route path="/professor/courses" element={<AdminCoursesPage />} />
           <Route
+            path="/professor/courses/create"
+            element={<Navigate to="/professor/courses" replace />}
+          />
+          <Route
+            path="/professor/courses/:courseId/edit"
+            element={<Navigate to="/professor/courses" replace />}
+          />
+          <Route
             path="/professor/assignments"
             element={<AdminAssignmentsPage />}
           />

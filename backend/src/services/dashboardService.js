@@ -300,6 +300,7 @@ const getAdminDashboard = async (user) => {
 
 const getAdminAnalytics = async (user) => {
   const courses = await getProfessorCourseSummaries(user.id);
+  const courseIds = courses.map((course) => course.id);
 
   const [assignments, groups, students, submissions] = await Promise.all([
     prisma.assignment.findMany({
@@ -439,11 +440,11 @@ const getAdminAnalytics = async (user) => {
       const groupConfirmedAssignments = courseMemberships.reduce(
         (count, membership) =>
           count +
-          groups
+          (groups
             .find((group) => group.id === membership.groupId)
-            ?.submissions.filter((submission) =>
+            ?.submissions?.filter((submission) =>
               completedStatuses.includes(submission.status),
-            ).length,
+            )?.length || 0),
         0,
       );
       const individuallyAcknowledgedAssignments = student.individualSubmissions.filter(

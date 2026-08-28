@@ -2,6 +2,7 @@ const { SubmissionStatus } = require("@prisma/client");
 
 const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
+const { validateCoursePayload } = require("../validators/courseValidator");
 const {
   calculateCompletionPercentage,
   completedStatuses,
@@ -464,10 +465,93 @@ const getCourseAssignments = async ({ user, courseId }) => {
   return course.assignments;
 };
 
+const createCourse = async ({ user, payload }) => {
+  if (user.role !== "PROFESSOR") {
+    throw new AppError("Only professors can create courses", 403);
+  }
+
+  const { name, code, description } = validateCoursePayload(payload);
+
+  const existingCourse = await prisma.course.findUnique({
+    where: { code },
+  });
+
+  if (existingCourse) {
+    throw new AppError("Course code already exists", 400);
+  }
+
+  const course = await prisma.course.create({
+    data: {
+      name,
+      code,
+      description,
+      professorId: user.id,
+    },
+    include: {
+      professor: {
+        select: safeUserSelect,
+      },
+    },
+  });
+
+  return course;
+};
+
+const updateCourse = async ({ user, courseId, payload }) => {
+  if (user.role !== "PROFESSOR") {
+    throw new AppError("Only professors can update courses", 403);
+  }
+
+  await ensureProfessorOwnsCourse(user.id, courseId);
+
+  const { name, code, description } = validateCoursePayload(payload);
+
+  const existingCourse = await prisma.course.findUnique({
+    where: { code },
+  });
+
+  if (existingCourse && existingCourse.id !== courseId) {
+    throw new AppError("Course code already exists", 400);
+  }
+
+  const course = await prisma.course.update({
+    where: { id: courseId },
+    data: {
+      name,
+      code,
+      description,
+    },
+    include: {
+      professor: {
+        select: safeUserSelect,
+      },
+    },
+  });
+
+  return course;
+};
+
+const deleteCourse = async ({ user, courseId }) => {
+  if (user.role !== "PROFESSOR") {
+    throw new AppError("Only professors can delete courses", 403);
+  }
+
+  await ensureProfessorOwnsCourse(user.id, courseId);
+
+  await prisma.course.delete({
+    where: { id: courseId },
+  });
+
+  return { id: courseId };
+};
+
 module.exports = {
   getAccessibleCourses,
   getCourseById,
   getCourseAssignments,
   getStudentCourseSummaries,
   getProfessorCourseSummaries,
+  createCourse,
+  updateCourse,
+  deleteCourse,
 };

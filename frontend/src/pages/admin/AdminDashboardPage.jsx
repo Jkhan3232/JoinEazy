@@ -108,23 +108,42 @@ function AdminDashboardPage() {
             {data.courses.map((course) => (
               <div
                 key={course.id}
-                className="rounded-3xl border border-brand-line bg-white/80 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-teal">
-                  {course.code}
-                </p>
-                <h4 className="mt-2 font-display text-2xl text-brand-ink">
-                  {course.name}
-                </h4>
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-600">
-                  <span>{course.studentCount} students</span>
-                  <span>{course.assignmentCount} assignments</span>
+                className="rounded-3xl border border-brand-line bg-white/80 p-5 flex flex-col justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-teal">
+                    {course.code}
+                  </p>
+                  <h4 className="mt-2 font-display text-2xl text-brand-ink">
+                    {course.name}
+                  </h4>
+                  <div className="mt-4 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-slate-600">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-slate-400">Enrolled Students</span>
+                      <span className="font-semibold text-brand-ink">{course.studentCount} students</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs text-slate-400">Assignments</span>
+                      <span className="font-semibold text-brand-ink">{course.assignmentCount} items</span>
+                    </div>
+                    <div className="flex flex-col mt-2">
+                      <span className="text-xs text-slate-400">Acknowledged</span>
+                      <span className="font-semibold text-teal-600">{course.acknowledgedSubmissions || 0} confirmed</span>
+                    </div>
+                    <div className="flex flex-col mt-2">
+                      <span className="text-xs text-slate-400">Pending Subs</span>
+                      <span className="font-semibold text-orange-600">{(course.totalSubmissions - (course.acknowledgedSubmissions || 0)) || 0} pending</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-slate-400">Overall Progress</span>
+                    <span className="text-xs font-semibold text-brand-teal">
+                      {course.completionPercentage}% complete
+                    </span>
+                  </div>
                   <ProgressBar value={course.completionPercentage} />
                 </div>
-                <p className="mt-2 text-sm font-semibold text-brand-teal">
-                  {course.completionPercentage}% complete
-                </p>
               </div>
             ))}
           </div>
