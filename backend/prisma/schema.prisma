@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -25,20 +26,20 @@ enum AssignmentType {
 }
 
 model User {
-  id                 String       @id @default(cuid())
-  name               String
-  email              String       @unique
-  password           String
-  role               Role         @default(STUDENT)
-  groupsCreated      Group[]      @relation("GroupCreator")
-  memberships        GroupMember[]
-  enrollments        StudentCourse[]
-  coursesTaught      Course[]     @relation("CourseProfessor")
-  assignmentsCreated Assignment[] @relation("AssignmentCreator")
-  submissions        Submission[] @relation("SubmissionConfirmer")
-  individualSubmissions Submission[] @relation("SubmissionStudent")
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id                    String        @id @default(cuid())
+  name                  String
+  email                 String        @unique
+  password              String
+  role                  Role          @default(STUDENT)
+  groupsCreated         Group[]       @relation("GroupCreator")
+  memberships           GroupMember[]
+  enrollments           StudentCourse[]
+  coursesTaught         Course[]      @relation("CourseProfessor")
+  assignmentsCreated    Assignment[]  @relation("AssignmentCreator")
+  submissions           Submission[]  @relation("SubmissionConfirmer")
+  individualSubmissions Submission[]  @relation("SubmissionStudent")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@index([role])
 }
@@ -108,10 +109,10 @@ model Assignment {
   description      String
   dueDate          DateTime
   oneDriveLink     String
-  submissionType   AssignmentType     @default(GROUP)
+  submissionType   AssignmentType    @default(GROUP)
   courseId         String?
   createdById      String
-  course           Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   createdBy        User              @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   assignmentGroups AssignmentGroup[]
   submissions      Submission[]
