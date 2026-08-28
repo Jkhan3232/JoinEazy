@@ -2,38 +2,38 @@ const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/response");
 const dashboardService = require("../services/dashboardService");
 
-const getDashboard = catchAsync(async (_req, res) => {
-  const dashboard = await dashboardService.getAdminDashboard();
+const getDashboard = catchAsync(async (req, res) => {
+  const dashboard = await dashboardService.getAdminDashboard(req.user);
 
   sendSuccess(res, {
-    message: "Admin dashboard fetched successfully",
+    message: "Professor dashboard fetched successfully",
     data: dashboard,
   });
 });
 
-const getAnalytics = catchAsync(async (_req, res) => {
-  const analytics = await dashboardService.getAdminAnalytics();
+const getAnalytics = catchAsync(async (req, res) => {
+  const analytics = await dashboardService.getAdminAnalytics(req.user);
 
   sendSuccess(res, {
-    message: "Admin analytics fetched successfully",
+    message: "Professor analytics fetched successfully",
     data: analytics,
   });
 });
 
-const getGroups = catchAsync(async (_req, res) => {
-  const groups = await dashboardService.getAdminGroups();
+const getGroups = catchAsync(async (req, res) => {
+  const groups = await dashboardService.getAdminGroups(req.user);
 
   sendSuccess(res, {
-    message: "Admin groups fetched successfully",
+    message: "Professor groups fetched successfully",
     data: groups,
   });
 });
 
-const getStudents = catchAsync(async (_req, res) => {
-  const students = await dashboardService.getAdminStudents();
+const getStudents = catchAsync(async (req, res) => {
+  const students = await dashboardService.getAdminStudents(req.user);
 
   sendSuccess(res, {
-    message: "Admin students fetched successfully",
+    message: "Professor students fetched successfully",
     data: students,
   });
 });

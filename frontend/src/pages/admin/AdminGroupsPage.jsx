@@ -9,6 +9,7 @@ import Input from "../../components/ui/Input";
 import ProgressBar from "../../components/ui/ProgressBar";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import { dashboardService } from "../../services/dashboardService";
+import { formatDate } from "../../utils/format";
 
 function AdminGroupsPage() {
   const { data, loading, error } = useAsyncData(() => dashboardService.getAdminGroups(), [], []);
@@ -24,7 +25,8 @@ function AdminGroupsPage() {
 
     return (
       group.name.toLowerCase().includes(query) ||
-      group.createdBy.name.toLowerCase().includes(query) ||
+      (group.leader?.name || group.createdBy?.name || "").toLowerCase().includes(query) ||
+      (group.course?.code || "").toLowerCase().includes(query) ||
       group.members.some((member) => member.name.toLowerCase().includes(query))
     );
   });
@@ -40,9 +42,9 @@ function AdminGroupsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Groups"
+        eyebrow="Professor groups"
         title="Group directory"
-        description="Review group composition, assignment coverage, and completion status."
+        description="Review group composition, course context, assignment coverage, and completion status."
       />
 
       <Card>
@@ -60,11 +62,17 @@ function AdminGroupsPage() {
             <Card key={group.id}>
               <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">Owned by {group.createdBy.name}</p>
+                  <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">
+                    {group.course?.code || "Legacy group"} • Leader{" "}
+                    {group.leader?.name || group.createdBy.name}
+                  </p>
                   <h3 className="mt-2 font-display text-3xl text-brand-ink">{group.name}</h3>
                   <p className="mt-3 text-slate-600">
                     {group.members.length} members • {group.assignmentCount} assignments •{" "}
                     {group.confirmedSubmissions} confirmed submissions
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Created {formatDate(group.createdAt)}
                   </p>
                 </div>
                 <Badge>{group.progressStatus}</Badge>
@@ -74,14 +82,17 @@ function AdminGroupsPage() {
                 <ProgressBar value={group.completionPercentage} />
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {group.members.map((member) => (
-                  <span
+                  <div
                     key={member.id}
-                    className="rounded-full border border-brand-line bg-white/80 px-3 py-1 text-sm text-slate-600"
-                  >
-                    {member.name}
-                  </span>
+                    className="rounded-2xl border border-brand-line bg-white/80 p-4">
+                    <p className="font-semibold text-brand-ink">{member.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">{member.email}</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.25em] text-slate-400">
+                      {member.role || "STUDENT"}
+                    </p>
+                  </div>
                 ))}
               </div>
             </Card>

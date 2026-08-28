@@ -28,15 +28,53 @@ export const getErrorMessage = (error) =>
   error?.response?.data?.message || error?.message || "Something went wrong";
 
 export const getStatusTone = (status) => {
-  if (status === "CONFIRMED" || status === "Completed") {
+  if (["ACKNOWLEDGED", "CONFIRMED", "Completed", "Completed!"].includes(status)) {
     return "success";
   }
 
-  if (status === "In Progress") {
+  if (status === "SUBMITTED" || status === "In Progress") {
+    return "info";
+  }
+
+  if (status === "PENDING" || status === "Pending") {
     return "warning";
   }
 
   return "neutral";
+};
+
+export const formatStatusLabel = (status) => {
+  if (!status) {
+    return "Pending";
+  }
+
+  const normalized = String(status).toUpperCase();
+
+  if (normalized === "ACKNOWLEDGED") {
+    return "Acknowledged";
+  }
+
+  if (normalized === "SUBMITTED") {
+    return "Submitted";
+  }
+
+  if (normalized === "CONFIRMED") {
+    return "Confirmed";
+  }
+
+  if (normalized === "PENDING") {
+    return "Pending";
+  }
+
+  return status;
+};
+
+export const formatRoleLabel = (role) => {
+  if (role === "PROFESSOR") {
+    return "Professor";
+  }
+
+  return "Student";
 };
 
 export const toPercentLabel = (value) => `${value || 0}%`;

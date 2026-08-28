@@ -52,11 +52,11 @@ function AdminAssignmentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Assignment management"
+        eyebrow="Professor assignments"
         title="Assignments"
         description="Create, edit, allocate, and inspect submission coverage for each assignment."
         action={
-          <Link to="/admin/assignments/create">
+          <Link to="/professor/assignments/create">
             <Button variant="secondary">Create assignment</Button>
           </Link>
         }
@@ -84,10 +84,10 @@ function AdminAssignmentsPage() {
                   <Badge>
                     {
                       assignment.submissions.filter(
-                        (item) => item.status === "CONFIRMED",
+                        (item) => ["CONFIRMED", "ACKNOWLEDGED"].includes(item.status),
                       ).length
                     }{" "}
-                    confirmed
+                    completed
                   </Badge>
                 </div>
               </div>
@@ -96,6 +96,9 @@ function AdminAssignmentsPage() {
                 <div className="rounded-3xl border border-brand-line bg-white/80 p-4 text-sm text-slate-600">
                   <p>Created by {assignment.createdBy.name}</p>
                   <p className="mt-2">
+                    Course: {assignment.course?.code || assignment.course?.name || "Not set"}
+                  </p>
+                  <p className="mt-2">
                     OneDrive link: {assignment.oneDriveLink}
                   </p>
                   <p className="mt-2">
@@ -103,7 +106,7 @@ function AdminAssignmentsPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link to={`/admin/assignments/${assignment.id}/edit`}>
+                  <Link to={`/professor/assignments/${assignment.id}/edit`}>
                     <Button variant="primary">Edit and allocate</Button>
                   </Link>
                   <Button

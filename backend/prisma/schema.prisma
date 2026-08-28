@@ -4,11 +4,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
   STUDENT
-  ADMIN
+  PROFESSOR
 }
 
 enum SubmissionStatus {
@@ -31,8 +32,8 @@ model User {
   role               Role         @default(STUDENT)
   groupsCreated      Group[]      @relation("GroupCreator")
   memberships        GroupMember[]
-  enrollments         StudentCourse[]
-  coursesTaught       Course[]       @relation("CourseProfessor")
+  enrollments        StudentCourse[]
+  coursesTaught      Course[]     @relation("CourseProfessor")
   assignmentsCreated Assignment[] @relation("AssignmentCreator")
   submissions        Submission[] @relation("SubmissionConfirmer")
   individualSubmissions Submission[] @relation("SubmissionStudent")
@@ -50,6 +51,7 @@ model Course {
   professorId String
   professor   User            @relation("CourseProfessor", fields: [professorId], references: [id], onDelete: Restrict)
   enrollments StudentCourse[]
+  groups      Group[]
   assignments Assignment[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -73,7 +75,9 @@ model StudentCourse {
 model Group {
   id          String            @id @default(cuid())
   name        String
+  courseId    String?
   createdById String
+  course      Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   createdBy   User              @relation("GroupCreator", fields: [createdById], references: [id], onDelete: Restrict)
   members     GroupMember[]
   assignments AssignmentGroup[]
@@ -82,6 +86,7 @@ model Group {
   updatedAt   DateTime          @updatedAt
 
   @@index([createdById])
+  @@index([courseId])
 }
 
 model GroupMember {
@@ -134,19 +139,19 @@ model AssignmentGroup {
 model Submission {
   id            String           @id @default(cuid())
   assignmentId  String
-  groupId       String
+  groupId       String?
   studentId     String?
   confirmedById String?
   confirmedBy   User?            @relation("SubmissionConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
   confirmedAt   DateTime?
   status        SubmissionStatus @default(PENDING)
   assignment    Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  group         Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group         Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
   student       User?            @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
-  @@unique([assignmentId, groupId, studentId])
+  @@unique([assignmentId, groupId])
   @@index([assignmentId])
   @@index([groupId])
   @@index([status])

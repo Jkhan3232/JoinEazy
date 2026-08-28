@@ -1,8 +1,11 @@
 const prisma = require("../config/prisma");
 const AppError = require("../utils/AppError");
+const logger = require("../config/logger");
 const {
+  completedStatuses,
+  ensureProfessorOwnsCourse,
   ensureStudentAvailableForGroup,
-  getCurrentGroupMembership,
+  ensureStudentEnrolledInCourse,
   safeUserSelect,
 } = require("./sharedService");
 const { validateAddMemberPayload, validateCreateGroupPayload } = require("../validators/groupValidator");
@@ -21,26 +24,48 @@ const groupInclude = {
       joinedAt: "asc",
     },
   },
-  assignments: true,
-  submissions: true,
+  assignments: {
+    select: {
+      id: true,
+    },
+  },
+  submissions: {
+    select: {
+      id: true,
+      status: true,
+    },
+  },
 };
 
-const formatGroup = (group) => ({
-  id: group.id,
-  name: group.name,
-  createdBy: group.createdBy,
-  createdAt: group.createdAt,
-  updatedAt: group.updatedAt,
-  members: group.members.map((member) => ({
-    id: member.id,
-    joinedAt: member.joinedAt,
-    student: member.student,
-  })),
-  assignmentCount: group.assignments?.length || 0,
-  submissionCount: group.submissions?.length || 0,
-});
+const formatGroup = (group, userId = null) => {
+  const acknowledgedSubmissionCount = group.submissions.filter((submission) =>
+    completedStatuses.includes(submission.status),
+  ).length;
 
-const ensureStudentCanViewGroup = async (user, groupId) => {
+  return {
+    id: group.id,
+    name: group.name,
+    courseId: group.courseId || null,
+    course: null,
+    leaderId: group.createdById,
+    leader: group.createdBy,
+    createdBy: group.createdBy,
+    isLeader: userId ? group.createdById === userId : undefined,
+    createdAt: group.createdAt,
+    updatedAt: group.updatedAt,
+    members: group.members.map((member) => ({
+      id: member.id,
+      joinedAt: member.joinedAt,
+      student: member.student,
+    })),
+    assignmentCount: group.assignments.length,
+    submissionCount: group.submissions.length,
+    acknowledgedSubmissionCount,
+    pendingSubmissionCount: group.submissions.length - acknowledgedSubmissionCount,
+  };
+};
+
+const ensureUserCanViewGroup = async (user, groupId) => {
   const group = await prisma.group.findUnique({
     where: { id: groupId },
     include: groupInclude,
@@ -50,7 +75,7 @@ const ensureStudentCanViewGroup = async (user, groupId) => {
     throw new AppError("Group not found", 404);
   }
 
-  if (user.role === "ADMIN") {
+  if (user.role === "PROFESSOR") {
     return group;
   }
 
@@ -74,7 +99,7 @@ const ensureStudentCanManageGroup = async (userId, groupId) => {
   }
 
   if (group.createdById !== userId) {
-    throw new AppError("Only the group creator can manage members", 403);
+    throw new AppError("Only the group leader can manage members", 403);
   }
 
   return group;
@@ -83,57 +108,70 @@ const ensureStudentCanManageGroup = async (userId, groupId) => {
 const createGroup = async ({ user, payload }) => {
   const validatedPayload = validateCreateGroupPayload(payload);
 
-  await ensureStudentAvailableForGroup(user.id);
+  await ensureStudentEnrolledInCourse(user.id, validatedPayload.courseId);
+  await ensureStudentAvailableForGroup(user.id, validatedPayload.courseId);
 
-  const group = await prisma.group.create({
-    data: {
-      name: validatedPayload.name,
-      createdById: user.id,
-      members: {
-        create: {
-          studentId: user.id,
-        },
+  const group = await prisma.$transaction(async (transaction) => {
+    const createdGroup = await transaction.group.create({
+      data: {
+        name: validatedPayload.name,
+        courseId: validatedPayload.courseId,
+        createdById: user.id,
       },
-    },
-    include: groupInclude,
+    });
+
+    await transaction.groupMember.create({
+      data: {
+        groupId: createdGroup.id,
+        studentId: user.id,
+      },
+    });
+
+    return transaction.group.findUnique({
+      where: { id: createdGroup.id },
+      include: groupInclude,
+    });
   });
 
-  return formatGroup(group);
+  logger.info("Group created", {
+    groupId: group.id,
+    courseId: group.courseId,
+    leaderId: user.id,
+  });
+
+  return formatGroup(group, user.id);
 };
 
 const getGroups = async (user) => {
-  const groups =
-    user.role === "ADMIN"
-      ? await prisma.group.findMany({
-          include: groupInclude,
-          orderBy: {
-            createdAt: "desc",
-          },
-        })
-      : await prisma.group.findMany({
-          where: {
-            members: {
-              some: {
-                studentId: user.id,
-              },
+  const where =
+    user.role === "PROFESSOR"
+      ? {}
+      : {
+          members: {
+            some: {
+              studentId: user.id,
             },
           },
-          include: groupInclude,
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
+        };
 
-  return groups.map(formatGroup);
+  const groups = await prisma.group.findMany({
+    where,
+    include: groupInclude,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return groups.map((group) => formatGroup(group, user.id));
 };
 
 const getGroupById = async ({ user, groupId }) => {
-  const group = await ensureStudentCanViewGroup(user, groupId);
-  return formatGroup(group);
+  const group = await ensureUserCanViewGroup(user, groupId);
+  return formatGroup(group, user.id);
 };
 
 const addMember = async ({ user, groupId, payload }) => {
-  await ensureStudentCanManageGroup(user.id, groupId);
+  const group = await ensureStudentCanManageGroup(user.id, groupId);
   const { identifier, mode } = validateAddMemberPayload(payload);
 
   const student = await prisma.user.findFirst({
@@ -145,10 +183,10 @@ const addMember = async ({ user, groupId, payload }) => {
   }
 
   if (student.role !== "STUDENT") {
-    throw new AppError("Admins cannot be added to groups", 400);
+    throw new AppError("Professors cannot be added to student groups", 400);
   }
 
-  await ensureStudentAvailableForGroup(student.id, groupId);
+  await ensureStudentAvailableForGroup(student.id, group.courseId, groupId);
 
   const duplicateMember = await prisma.groupMember.findUnique({
     where: {
@@ -175,14 +213,20 @@ const addMember = async ({ user, groupId, payload }) => {
     include: groupInclude,
   });
 
-  return formatGroup(updatedGroup);
+  logger.info("Group member added", {
+    groupId,
+    leaderId: user.id,
+    studentId: student.id,
+  });
+
+  return formatGroup(updatedGroup, user.id);
 };
 
 const removeMember = async ({ user, groupId, studentId }) => {
   const group = await ensureStudentCanManageGroup(user.id, groupId);
 
   if (group.createdById === studentId) {
-    throw new AppError("The group creator cannot be removed from the group", 400);
+    throw new AppError("The group leader cannot be removed from the group", 400);
   }
 
   const membership = await prisma.groupMember.findUnique({
@@ -212,7 +256,13 @@ const removeMember = async ({ user, groupId, studentId }) => {
     include: groupInclude,
   });
 
-  return formatGroup(updatedGroup);
+  logger.info("Group member removed", {
+    groupId,
+    leaderId: user.id,
+    studentId,
+  });
+
+  return formatGroup(updatedGroup, user.id);
 };
 
 module.exports = {

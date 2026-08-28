@@ -18,6 +18,7 @@ function StudentAssignmentsPage() {
     () => assignmentService.getStudentAssignments(),
     [],
   );
+  const currentGroup = data?.groups?.[0] || null;
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -66,9 +67,7 @@ function StudentAssignmentsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Assignments"
-        title={
-          data.group ? `Assignments for ${data.group.name}` : "Your assignments"
-        }
+        title={currentGroup ? `Assignments for ${currentGroup.name}` : "Your assignments"}
         description="Open the OneDrive folder, upload your work externally, then use the two-step confirmation flow below."
       />
 
@@ -189,11 +188,11 @@ function StudentAssignmentsPage() {
             </Card>
           ))
         ) : (
-          <EmptyState
-            title="No assignments yet"
-            description="Once an admin allocates work to your group, it will appear here with its OneDrive link and submission status."
-          />
-        )}
+        <EmptyState
+          title="No assignments yet"
+          description="Once a professor allocates work to your group, it will appear here with its OneDrive link and submission status."
+        />
+      )}
       </div>
 
       {selectedAssignment ? (

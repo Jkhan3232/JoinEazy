@@ -24,25 +24,25 @@ function AdminDashboardPage() {
   );
 
   if (loading) {
-    return <Loader label="Loading admin dashboard..." />;
+    return <Loader label="Loading professor dashboard..." />;
   }
 
   if (error) {
-    return <EmptyState title="Unable to load admin dashboard" description={error} />;
+    return <EmptyState title="Unable to load professor dashboard" description={error} />;
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Admin dashboard"
-        title="Operations overview"
-        description="Monitor students, groups, assignments, and submission completion across the platform."
+        eyebrow="Professor dashboard"
+        title="Teaching overview"
+        description="Monitor courses, students, groups, assignments, and submission completion across your classes."
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Courses"
-          value={data.courses.length}
+          value={data.dashboard.totalCourses ?? data.courses.length}
           helper="Courses taught by you"
         />
         <StatCard
@@ -58,7 +58,7 @@ function AdminDashboardPage() {
         <StatCard
           label="Assignments"
           value={data.dashboard.totalAssignments}
-          helper="Assignments created by admins"
+          helper="Assignments created for your courses"
         />
         <StatCard
           label="Submission slots"
@@ -68,22 +68,22 @@ function AdminDashboardPage() {
         <StatCard
           label="Confirmed"
           value={data.dashboard.confirmedSubmissions}
-          helper="Groups that completed submission"
+          helper="Acknowledged submissions"
         />
         <StatCard
           label="Pending"
           value={data.dashboard.pendingSubmissions}
-          helper="Submissions still awaiting confirmation"
+          helper="Submissions still awaiting acknowledgement"
         />
         <StatCard
           label="Submitted"
           value={data.dashboard.submittedSubmissions}
-          helper="Work uploaded externally"
+          helper="Marked as submitted"
         />
         <StatCard
           label="Acknowledged"
           value={data.dashboard.acknowledgedSubmissions}
-          helper="Final confirmations"
+          helper="Final acknowledgements"
         />
         <StatCard
           label="Completion"

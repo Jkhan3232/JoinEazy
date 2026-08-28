@@ -54,11 +54,11 @@ function AssignmentForm({
             ))}
           </select>
         </label>
-        <Input
-          label="Due date"
-          name="dueDate"
-          type="datetime-local"
-          value={form.dueDate}
+      <Input
+        label="Deadline"
+        name="dueDate"
+        type="datetime-local"
+        value={form.dueDate}
           onChange={onChange}
           required
         />

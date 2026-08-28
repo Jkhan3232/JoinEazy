@@ -43,7 +43,9 @@ function LoginPage() {
       toast.success("Welcome back.");
 
       const fallbackPath =
-        response.user.role === "ADMIN" ? "/admin/dashboard" : "/student/dashboard";
+        response.user.role === "PROFESSOR"
+          ? "/professor/dashboard"
+          : "/student/dashboard";
 
       navigate(location.state?.from?.pathname || fallbackPath, { replace: true });
     } catch (error) {
@@ -63,7 +65,7 @@ function LoginPage() {
           Sign in to continue
         </h2>
         <p className="mt-2 text-slate-600">
-          Use the seeded admin or student credentials to walk through the
+          Use the seeded professor or student credentials to walk through the
           assessment demo.
         </p>
       </div>
@@ -110,8 +112,12 @@ function LoginPage() {
 
       <div className="rounded-3xl border border-brand-line bg-white/70 p-5 text-sm text-slate-600 shadow-sm">
         <p className="font-semibold text-brand-ink">Demo credentials</p>
-        <p className="mt-2">Admin: `admin@joineazy.test` / `Admin@123`</p>
-        <p>Student: `student1@joineazy.test` / `Student@123`</p>
+        <p className="mt-2">
+          Professor: <code>professor@joineazy.test</code> / <code>Professor@123</code>
+        </p>
+        <p>
+          Student: <code>student1@joineazy.test</code> / <code>Student@123</code>
+        </p>
       </div>
 
       <p className="text-sm text-slate-600">

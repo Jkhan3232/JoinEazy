@@ -12,13 +12,12 @@ import { dashboardService } from "../../services/dashboardService";
 import { formatDate } from "../../utils/format";
 
 function StudentDashboardPage() {
-  const { data, loading, error } = useAsyncData(async () => {
-    const [dashboard, courses] = await Promise.all([
-      dashboardService.getStudentDashboard(),
-      dashboardService.getStudentCourses(),
-    ]);
-    return { ...dashboard, courses };
-  }, []);
+  const { data, loading, error } = useAsyncData(
+    () => dashboardService.getStudentDashboard(),
+    [],
+  );
+  const currentGroup = data?.groups?.[0] || null;
+  const groupMembers = currentGroup?.members || [];
 
   if (loading) {
     return <Loader label="Loading student dashboard..." />;
@@ -84,7 +83,7 @@ function StudentDashboardPage() {
         )}
       </section>
 
-      {!data.currentGroup ? (
+      {!currentGroup ? (
         <EmptyState
           title="Create your first group"
           description="Your courses are ready above. Create a group to unlock group assignment workflows."
@@ -98,12 +97,12 @@ function StudentDashboardPage() {
         />
       ) : null}
 
-      {data.currentGroup ? (
+      {currentGroup ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Current Group"
-            value={data.currentGroup.name}
-            helper="Your active working group"
+            value={currentGroup.name}
+            helper={currentGroup.course?.code || "Your active working group"}
           />
           <StatCard
             label="Assignments"
@@ -123,7 +122,7 @@ function StudentDashboardPage() {
         </div>
       ) : null}
 
-      {data.currentGroup ? (
+      {currentGroup ? (
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <Card>
             <div className="flex items-start justify-between gap-4">
@@ -132,7 +131,7 @@ function StudentDashboardPage() {
                   Group progress
                 </p>
                 <h3 className="mt-2 font-display text-3xl text-brand-ink">
-                  {data.currentGroup.name}
+                  {currentGroup.name}
                 </h3>
                 <p className="mt-2 text-slate-600">
                   {data.completedAssignments} of {data.totalAssignedAssignments}{" "}
@@ -146,7 +145,7 @@ function StudentDashboardPage() {
             </div>
 
             <div className="mt-6 grid gap-3">
-              {data.groupMembers.map((member) => (
+              {groupMembers.map((member) => (
                 <div
                   key={member.student.id}
                   className="flex items-center justify-between rounded-2xl border border-brand-line bg-white/80 px-4 py-3">

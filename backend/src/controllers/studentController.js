@@ -1,6 +1,7 @@
 const catchAsync = require("../utils/catchAsync");
 const { sendSuccess } = require("../utils/response");
 const dashboardService = require("../services/dashboardService");
+const assignmentService = require("../services/assignmentService");
 
 const getAssignments = catchAsync(async (req, res) => {
   const assignments = await dashboardService.getStudentAssignments(req.user.id);
@@ -8,6 +9,18 @@ const getAssignments = catchAsync(async (req, res) => {
   sendSuccess(res, {
     message: "Student assignments fetched successfully",
     data: assignments,
+  });
+});
+
+const getAssignmentById = catchAsync(async (req, res) => {
+  const assignment = await assignmentService.getAssignmentById({
+    assignmentId: req.params.id,
+    user: req.user,
+  });
+
+  sendSuccess(res, {
+    message: "Student assignment fetched successfully",
+    data: assignment,
   });
 });
 
@@ -30,6 +43,7 @@ const getCourses = catchAsync(async (req, res) => {
 
 module.exports = {
   getAssignments,
+  getAssignmentById,
   getDashboard,
   getCourses,
 };

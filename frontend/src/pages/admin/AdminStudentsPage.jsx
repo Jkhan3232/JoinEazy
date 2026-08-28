@@ -24,7 +24,8 @@ function AdminStudentsPage() {
     return (
       student.name.toLowerCase().includes(query) ||
       student.email.toLowerCase().includes(query) ||
-      student.group?.name.toLowerCase().includes(query)
+      (student.courses || []).some((course) => course.name.toLowerCase().includes(query) || course.code.toLowerCase().includes(query)) ||
+      (student.groups || []).some((group) => group.name.toLowerCase().includes(query) || (group.courseCode || "").toLowerCase().includes(query))
     );
   });
 
@@ -39,9 +40,9 @@ function AdminStudentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Students"
+        eyebrow="Professor students"
         title="Student directory"
-        description="Inspect current group membership and submission participation for each student."
+        description="Inspect course enrollment, current group membership, and submission participation for each student."
       />
 
       <Card>
@@ -62,7 +63,7 @@ function AdminStudentsPage() {
                   <h3 className="font-display text-3xl text-brand-ink">{student.name}</h3>
                   <p className="mt-2 text-slate-600">{student.email}</p>
                   <p className="mt-2 text-sm text-slate-500">
-                    Group: {student.group?.name || "No group assigned"}
+                    Courses: {student.courses?.length || 0} • Groups: {student.groups?.length || 0}
                   </p>
                 </div>
                 <Badge>{student.personallyConfirmedAssignments} personally confirmed</Badge>
@@ -80,6 +81,42 @@ function AdminStudentsPage() {
                 <div className="rounded-2xl border border-brand-line bg-white/80 p-4">
                   <p className="text-sm text-slate-500">Personally confirmed</p>
                   <p className="mt-2 text-2xl font-bold text-brand-ink">{student.personallyConfirmedAssignments}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border border-brand-line bg-white/80 p-4">
+                  <p className="text-sm text-slate-500">Courses</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {student.courses?.length ? (
+                      student.courses.map((course) => (
+                        <span
+                          key={course.id}
+                          className="rounded-full border border-brand-line bg-white/80 px-3 py-1 text-sm text-slate-600">
+                          {course.code}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">No courses</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-brand-line bg-white/80 p-4">
+                  <p className="text-sm text-slate-500">Groups</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {student.groups?.length ? (
+                      student.groups.map((group) => (
+                        <span
+                          key={group.id}
+                          className="rounded-full border border-brand-line bg-white/80 px-3 py-1 text-sm text-slate-600">
+                          {group.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">No groups</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </Card>

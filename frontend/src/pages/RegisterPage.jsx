@@ -62,7 +62,7 @@ function RegisterPage() {
           Create your account
         </h2>
         <p className="mt-2 text-slate-600">
-          Registration is student-only. Admin accounts are provisioned through
+          Registration is student-only. Professor accounts are provisioned through
           database seed data.
         </p>
       </div>

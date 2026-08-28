@@ -13,24 +13,39 @@ export const dashboardService = {
     const response = await api.get(`/courses/${courseId}`);
     return response.data.data;
   },
-  getAdminDashboard: async () => {
-    const response = await api.get("/admin/dashboard");
+  getProfessorDashboard: async () => {
+    const response = await api.get("/professor/dashboard");
     return response.data.data;
   },
-  getAdminCourses: async () => {
+  getAdminDashboard: async () => {
+    return dashboardService.getProfessorDashboard();
+  },
+  getProfessorCourses: async () => {
     const response = await api.get("/courses");
     return response.data.data;
   },
+  getAdminCourses: async () => {
+    return dashboardService.getProfessorCourses();
+  },
+  getProfessorAnalytics: async () => {
+    const response = await api.get("/professor/analytics");
+    return response.data.data;
+  },
   getAdminAnalytics: async () => {
-    const response = await api.get("/admin/analytics");
+    return dashboardService.getProfessorAnalytics();
+  },
+  getProfessorGroups: async () => {
+    const response = await api.get("/professor/groups");
     return response.data.data;
   },
   getAdminGroups: async () => {
-    const response = await api.get("/admin/groups");
+    return dashboardService.getProfessorGroups();
+  },
+  getProfessorStudents: async () => {
+    const response = await api.get("/professor/students");
     return response.data.data;
   },
   getAdminStudents: async () => {
-    const response = await api.get("/admin/students");
-    return response.data.data;
+    return dashboardService.getProfessorStudents();
   },
 };

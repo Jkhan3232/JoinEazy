@@ -40,8 +40,8 @@ const deleteAssignment = catchAsync(async (req, res) => {
   });
 });
 
-const getAssignments = catchAsync(async (_req, res) => {
-  const assignments = await assignmentService.getAssignments();
+const getAssignments = catchAsync(async (req, res) => {
+  const assignments = await assignmentService.getAssignments(req.user);
 
   sendSuccess(res, {
     message: "Assignments fetched successfully",
@@ -62,7 +62,10 @@ const getAssignmentById = catchAsync(async (req, res) => {
 });
 
 const assignToAllGroups = catchAsync(async (req, res) => {
-  const result = await assignmentService.assignToAllGroups(req.params.id);
+  const result = await assignmentService.assignToAllGroups({
+    user: req.user,
+    assignmentId: req.params.id,
+  });
 
   sendSuccess(res, {
     message: "Assignment allocated to all groups successfully",
@@ -72,6 +75,7 @@ const assignToAllGroups = catchAsync(async (req, res) => {
 
 const assignToSelectedGroups = catchAsync(async (req, res) => {
   const result = await assignmentService.assignToSelectedGroups({
+    user: req.user,
     assignmentId: req.params.id,
     payload: req.body,
   });

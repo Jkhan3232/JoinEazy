@@ -2,10 +2,14 @@ const { AppError, ensureString, isValidEmail, validateRequiredFields } = require
 
 const validateCreateGroupPayload = (payload) => {
   const name = ensureString(payload.name);
+  const courseId = ensureString(payload.courseId);
 
-  validateRequiredFields([{ label: "group name", value: name }]);
+  validateRequiredFields([
+    { label: "group name", value: name },
+    { label: "course", value: courseId },
+  ]);
 
-  return { name };
+  return { name, courseId };
 };
 
 const validateAddMemberPayload = (payload) => {

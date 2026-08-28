@@ -5,12 +5,12 @@ import Card from "../../components/ui/Card";
 import { useAuth } from "../../hooks/useAuth";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import { groupService } from "../../services/groupService";
-import { formatDate } from "../../utils/format";
+import { formatDate, formatRoleLabel } from "../../utils/format";
 
 function StudentProfilePage() {
   const { user } = useAuth();
   const { data, loading, error } = useAsyncData(() => groupService.getGroups(), [], []);
-  const currentGroup = data?.[0] || null;
+  const groups = data || [];
 
   if (loading) {
     return <Loader label="Loading profile..." />;
@@ -37,7 +37,7 @@ function StudentProfilePage() {
           </div>
           <div className="rounded-3xl border border-brand-line bg-white/80 p-5">
             <p className="text-sm text-slate-500">Role</p>
-            <p className="mt-1 text-lg font-semibold text-brand-ink">{user.role}</p>
+            <p className="mt-1 text-lg font-semibold text-brand-ink">{formatRoleLabel(user.role)}</p>
           </div>
           <div className="rounded-3xl border border-brand-line bg-white/80 p-5">
             <p className="text-sm text-slate-500">Member since</p>
@@ -46,24 +46,34 @@ function StudentProfilePage() {
         </Card>
 
         <Card>
-          <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">Current group</p>
-          {currentGroup ? (
+          <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">Groups</p>
+          {groups.length ? (
             <div className="mt-4 space-y-4">
-              <div className="rounded-3xl border border-brand-line bg-white/80 p-5">
-                <p className="font-display text-3xl text-brand-ink">{currentGroup.name}</p>
-                <p className="mt-2 text-slate-600">Created by {currentGroup.createdBy.name}</p>
-              </div>
-              <div className="grid gap-3">
-                {currentGroup.members.map((member) => (
-                  <div
-                    key={member.student.id}
-                    className="rounded-2xl border border-brand-line bg-white/80 px-4 py-3"
-                  >
-                    <p className="font-semibold text-brand-ink">{member.student.name}</p>
-                    <p className="text-sm text-slate-500">{member.student.email}</p>
+              {groups.map((group) => (
+                <div key={group.id} className="rounded-3xl border border-brand-line bg-white/80 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-teal">
+                    {group.course?.code || "Course"}
+                  </p>
+                  <p className="mt-2 font-display text-3xl text-brand-ink">{group.name}</p>
+                  <p className="mt-2 text-slate-600">
+                    Leader: {group.leader?.name || group.createdBy?.name || "Not set"}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {group.members.length} members • {group.completionPercentage}% complete
+                  </p>
+                  <div className="mt-4 grid gap-3">
+                    {group.members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="rounded-2xl border border-brand-line bg-white/80 px-4 py-3"
+                      >
+                        <p className="font-semibold text-brand-ink">{member.student.name}</p>
+                        <p className="text-sm text-slate-500">{member.student.email}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           ) : (
             <p className="mt-4 text-slate-600">

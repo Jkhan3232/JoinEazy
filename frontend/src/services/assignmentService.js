@@ -9,6 +9,10 @@ export const assignmentService = {
     const response = await api.get(`/assignments/${assignmentId}`);
     return response.data.data;
   },
+  getStudentAssignment: async (assignmentId) => {
+    const response = await api.get(`/student/assignments/${assignmentId}`);
+    return response.data.data;
+  },
   createAssignment: async (payload) => {
     const response = await api.post("/assignments", payload);
     return response.data.data;

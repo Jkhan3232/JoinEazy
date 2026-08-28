@@ -8,7 +8,7 @@ const {
 const normalizeAssignmentPayload = (payload) => {
   const title = ensureString(payload.title);
   const description = ensureString(payload.description);
-  const dueDate = ensureString(payload.dueDate);
+  const dueDate = ensureString(payload.deadline || payload.dueDate);
   const oneDriveLink = ensureString(payload.oneDriveLink);
   const courseId = ensureString(payload.courseId);
   const submissionType = ensureString(
@@ -20,6 +20,7 @@ const normalizeAssignmentPayload = (payload) => {
     { label: "description", value: description },
     { label: "due date", value: dueDate },
     { label: "OneDrive link", value: oneDriveLink },
+    { label: "course", value: courseId },
   ]);
 
   if (!isValidUrl(oneDriveLink)) {
@@ -49,9 +50,10 @@ const normalizeAssignmentPayload = (payload) => {
     title,
     description,
     dueDate: parsedDueDate,
+    deadline: parsedDueDate,
     oneDriveLink,
     submissionType,
-    ...(courseId ? { courseId } : {}),
+    courseId,
   };
 };
 

@@ -22,7 +22,8 @@ function ProtectedRoute({ allowedRoles }) {
   }
 
   if (allowedRoles?.length && !allowedRoles.includes(user.role)) {
-    const fallbackRoute = user.role === "ADMIN" ? "/admin/dashboard" : "/student/dashboard";
+    const fallbackRoute =
+      user.role === "PROFESSOR" ? "/professor/dashboard" : "/student/dashboard";
     return <Navigate to={fallbackRoute} replace />;
   }
 

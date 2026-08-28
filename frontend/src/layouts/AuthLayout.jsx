@@ -16,7 +16,7 @@ function AuthLayout() {
                 workspace.
               </h1>
               <p className="max-w-xl text-lg text-slate-600">
-                A focused dashboard for admin oversight and student submission
+                A focused dashboard for professor oversight and student submission
                 workflows, designed around the exact demo flow in the technical
                 assessment.
               </p>

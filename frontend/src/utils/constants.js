@@ -6,11 +6,11 @@ export const studentNavigation = [
   { label: "Profile", to: "/student/profile" },
 ];
 
-export const adminNavigation = [
-  { label: "Dashboard", to: "/admin/dashboard" },
-  { label: "Courses", to: "/admin/courses" },
-  { label: "Assignments", to: "/admin/assignments" },
-  { label: "Groups", to: "/admin/groups" },
-  { label: "Students", to: "/admin/students" },
-  { label: "Analytics", to: "/admin/analytics" },
+export const professorNavigation = [
+  { label: "Dashboard", to: "/professor/dashboard" },
+  { label: "Courses", to: "/professor/courses" },
+  { label: "Assignments", to: "/professor/assignments" },
+  { label: "Groups", to: "/professor/groups" },
+  { label: "Students", to: "/professor/students" },
+  { label: "Analytics", to: "/professor/analytics" },
 ];

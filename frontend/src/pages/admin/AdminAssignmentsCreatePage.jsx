@@ -44,7 +44,7 @@ function AdminAssignmentsCreatePage() {
       };
       const assignment = await assignmentService.createAssignment(payload);
       toast.success("Assignment created successfully.");
-      navigate(`/admin/assignments/${assignment.id}/edit`);
+      navigate(`/professor/assignments/${assignment.id}/edit`);
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
