@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "https://joineazy.pages.dev/api/v1";
+  import.meta.env.VITE_API_URL ||
+  "https://backend-delta-dun-31.vercel.app/api/v1";
 const TOKEN_KEY = "12wedfgzxdrftgyhujctvygbhujtvybunij";
 
 let unauthorizedHandler = null;
