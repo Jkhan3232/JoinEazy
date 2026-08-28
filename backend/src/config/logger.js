@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const winston = require("winston");
 const morgan = require("morgan");
@@ -129,43 +130,37 @@ const transports = [
 /**
  * Production file logging
  */
-if (isProduction) {
-  /**
-   * Application logs
-   */
+const canUseFileLogging = (() => {
+  if (!isProduction) {
+    return false;
+  }
+
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+    fs.accessSync(LOG_DIR, fs.constants.W_OK);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+})();
+
+if (canUseFileLogging) {
   transports.push(
     new winston.transports.DailyRotateFile({
       filename: path.join(LOG_DIR, "application-%DATE%.log"),
-
       datePattern: "YYYY-MM-DD",
-
       maxSize: LOG_MAX_SIZE,
-
       maxFiles: LOG_MAX_FILES,
-
       zippedArchive: true,
-
       format: fileFormat,
     }),
-  );
-
-  /**
-   * Error logs
-   */
-  transports.push(
     new winston.transports.DailyRotateFile({
       filename: path.join(LOG_DIR, "error-%DATE%.log"),
-
       datePattern: "YYYY-MM-DD",
-
       level: "error",
-
       maxSize: LOG_MAX_SIZE,
-
       maxFiles: "30d",
-
       zippedArchive: true,
-
       format: fileFormat,
     }),
   );
