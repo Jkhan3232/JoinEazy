@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import CourseCard from "../../components/shared/CourseCard";
 import EmptyState from "../../components/shared/EmptyState";
 import Loader from "../../components/shared/Loader";
 import PageHeader from "../../components/shared/PageHeader";
@@ -35,44 +36,40 @@ function StudentDashboardPage() {
         description="Track your current group, assigned work, and submission progress from one place."
       />
 
-      <section>
-        <div className="mb-4 flex items-end justify-between gap-4">
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-brand-teal">
               Learning spaces
             </p>
             <h3 className="mt-2 font-display text-3xl text-brand-ink">
-              Your courses
+              Your enrolled courses
             </h3>
           </div>
+          <Link
+            to="/student/courses"
+            className="text-sm font-semibold text-brand-teal hover:underline">
+            View all courses &rarr;
+          </Link>
         </div>
         {data.courses.length ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.courses.map((course) => (
-              <Link key={course.id} to={`/student/courses/${course.id}`}>
-                <Card className="h-full transition hover:-translate-y-1 hover:shadow-float">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-teal">
-                        {course.code}
-                      </p>
-                      <h4 className="mt-2 font-display text-2xl text-brand-ink">
-                        {course.name}
-                      </h4>
-                    </div>
-                    <Badge>{course.completionPercentage}%</Badge>
+              <CourseCard
+                key={course.id}
+                course={course}
+                to={`/student/courses/${course.id}`}
+                footer={
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-slate-500 font-medium">
+                      {course.completedAssignments || 0} / {course.totalAssignments || course.assignmentCount || 0} completed
+                    </span>
+                    <span className="font-semibold text-brand-teal hover:underline">
+                      Open Assignments &rarr;
+                    </span>
                   </div>
-                  <p className="mt-3 text-sm text-slate-600">
-                    Professor: {course.professor.name}
-                  </p>
-                  <div className="mt-5">
-                    <ProgressBar value={course.completionPercentage} />
-                  </div>
-                  <p className="mt-3 text-sm text-slate-500">
-                    {course.assignmentCount} assignments
-                  </p>
-                </Card>
-              </Link>
+                }
+              />
             ))}
           </div>
         ) : (
@@ -90,14 +87,12 @@ function StudentDashboardPage() {
           action={
             <Link
               to="/student/group"
-              className="rounded-2xl bg-brand-teal px-5 py-3 text-sm font-semibold text-white">
-              Go to group setup
+              className="rounded-2xl bg-brand-teal px-5 py-3 text-sm font-semibold text-white transition hover:opacity-95">
+              + Create group
             </Link>
           }
         />
-      ) : null}
-
-      {currentGroup ? (
+      ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Current Group"
@@ -112,7 +107,7 @@ function StudentDashboardPage() {
           <StatCard
             label="Completed"
             value={data.completedAssignments}
-            helper="Confirmed submissions"
+            helper="Completed / submitted assignments"
           />
           <StatCard
             label="Progress"
@@ -120,7 +115,7 @@ function StudentDashboardPage() {
             helper={data.progressStatus}
           />
         </div>
-      ) : null}
+      )}
 
       {currentGroup ? (
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -135,7 +130,7 @@ function StudentDashboardPage() {
                 </h3>
                 <p className="mt-2 text-slate-600">
                   {data.completedAssignments} of {data.totalAssignedAssignments}{" "}
-                  assignments confirmed
+                  assignments completed/submitted
                 </p>
               </div>
               <Badge>{data.progressStatus}</Badge>
@@ -172,24 +167,26 @@ function StudentDashboardPage() {
             <div className="mt-5 space-y-4">
               {data.recentAssignments.length ? (
                 data.recentAssignments.map((assignment) => (
-                  <div
+                  <Link
                     key={assignment.id}
-                    className="rounded-3xl border border-brand-line bg-white/80 p-4">
+                    to={`/student/assignments/${assignment.id}`}
+                    className="block rounded-3xl border border-brand-line bg-white/80 p-4 transition hover:border-brand-teal hover:shadow-subtle">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="font-semibold text-brand-ink">
                           {assignment.title}
                         </p>
-                        <p className="mt-2 text-sm text-slate-600">
+                        <p className="mt-2 text-sm text-slate-600 line-clamp-2">
                           {assignment.description}
                         </p>
                       </div>
                       <Badge>{assignment.submissionStatus}</Badge>
                     </div>
-                    <p className="mt-4 text-sm text-slate-500">
-                      Due {formatDate(assignment.dueDate)}
-                    </p>
-                  </div>
+                    <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+                      <span>Due {formatDate(assignment.dueDate)}</span>
+                      <span className="font-semibold text-brand-teal">Open Assignment &rarr;</span>
+                    </div>
+                  </Link>
                 ))
               ) : (
                 <p className="text-slate-500">

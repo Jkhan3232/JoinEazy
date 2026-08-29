@@ -238,11 +238,10 @@ const getStudentCourseSummaries = async (studentId) => {
     const visibleAssignments = course.assignments.filter((assignment) =>
       isStudentAssignmentVisible(assignment, membership),
     );
-    const completedAssignments = visibleAssignments.filter((assignment) =>
-      completedStatuses.includes(
-        getStudentSubmissionForAssignment(assignment, studentId, membership)?.status,
-      ),
-    ).length;
+    const completedAssignments = visibleAssignments.filter((assignment) => {
+      const status = getStudentSubmissionForAssignment(assignment, studentId, membership)?.status;
+      return status === SubmissionStatus.SUBMITTED || completedStatuses.includes(status);
+    }).length;
 
     return {
       id: course.id,
@@ -296,6 +295,22 @@ const getProfessorCourseSummaries = async (professorId) => {
         ).length,
       0,
     );
+    const submittedSubmissions = course.assignments.reduce(
+      (count, assignment) =>
+        count +
+        assignment.submissions.filter(
+          (submission) => submission.status === SubmissionStatus.SUBMITTED,
+        ).length,
+      0,
+    );
+    const pendingSubmissions = course.assignments.reduce(
+      (count, assignment) =>
+        count +
+        assignment.submissions.filter(
+          (submission) => submission.status === SubmissionStatus.PENDING,
+        ).length,
+      0,
+    );
 
     return {
       id: course.id,
@@ -308,16 +323,9 @@ const getProfessorCourseSummaries = async (professorId) => {
       assignmentCount: course.assignments.length,
       totalSubmissions,
       acknowledgedSubmissions,
-      pendingSubmissions:
-        totalSubmissions -
-        course.assignments.reduce(
-          (count, assignment) =>
-            count +
-            assignment.submissions.filter(
-              (submission) => submission.status === SubmissionStatus.PENDING,
-            ).length,
-          0,
-        ),
+      confirmedSubmissions: acknowledgedSubmissions,
+      submittedSubmissions,
+      pendingSubmissions,
       completionPercentage: calculateCompletionPercentage(
         acknowledgedSubmissions,
         totalSubmissions,

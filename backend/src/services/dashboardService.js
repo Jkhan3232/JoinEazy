@@ -215,10 +215,15 @@ const getStudentDashboard = async (studentId) => {
 
 const getAdminDashboard = async (user) => {
   const courses = await getProfessorCourseSummaries(user.id);
+  const courseIds = courses.map((course) => course.id);
+
+  const courseWhere = courseIds.length
+    ? { OR: [{ courseId: { in: courseIds } }, { createdById: user.id }] }
+    : { createdById: user.id };
 
   const [assignments, submissions, groups, students] = await Promise.all([
     prisma.assignment.findMany({
-      where: {},
+      where: courseWhere,
       include: {
         course: true,
         submissions: true,
@@ -229,13 +234,17 @@ const getAdminDashboard = async (user) => {
       take: 6,
     }),
     prisma.submission.findMany({
-      where: {},
+      where: {
+        assignment: courseWhere,
+      },
     }),
     prisma.group.findMany({
-      where: {},
+      where: courseIds.length
+        ? { OR: [{ courseId: { in: courseIds } }, { createdById: user.id }] }
+        : { createdById: user.id },
     }),
     prisma.studentCourse.findMany({
-      where: {},
+      where: courseIds.length ? { courseId: { in: courseIds } } : {},
       select: {
         studentId: true,
       },
@@ -302,9 +311,13 @@ const getAdminAnalytics = async (user) => {
   const courses = await getProfessorCourseSummaries(user.id);
   const courseIds = courses.map((course) => course.id);
 
+  const courseWhere = courseIds.length
+    ? { OR: [{ courseId: { in: courseIds } }, { createdById: user.id }] }
+    : { createdById: user.id };
+
   const [assignments, groups, students, submissions] = await Promise.all([
     prisma.assignment.findMany({
-      where: {},
+      where: courseWhere,
       include: {
         course: true,
         submissions: true,
@@ -314,7 +327,9 @@ const getAdminAnalytics = async (user) => {
       },
     }),
     prisma.group.findMany({
-      where: {},
+      where: courseIds.length
+        ? { OR: [{ courseId: { in: courseIds } }, { createdById: user.id }] }
+        : { createdById: user.id },
       include: {
         course: true,
         createdBy: {
@@ -336,6 +351,7 @@ const getAdminAnalytics = async (user) => {
     prisma.user.findMany({
       where: {
         role: Role.STUDENT,
+        ...(courseIds.length ? { enrollments: { some: { courseId: { in: courseIds } } } } : {}),
       },
       include: {
         enrollments: {
@@ -361,7 +377,9 @@ const getAdminAnalytics = async (user) => {
       },
     }),
     prisma.submission.findMany({
-      where: {},
+      where: {
+        assignment: courseWhere,
+      },
     }),
   ]);
 
