@@ -18,34 +18,39 @@ export const dashboardService = {
     return response.data.data;
   },
   getAdminDashboard: async () => {
-    return dashboardService.getProfessorDashboard();
+    const response = await api.get("/admin/dashboard");
+    return response.data.data;
   },
   getProfessorCourses: async () => {
     const response = await api.get("/courses");
     return response.data.data;
   },
   getAdminCourses: async () => {
-    return dashboardService.getProfessorCourses();
+    const response = await api.get("/courses");
+    return response.data.data;
   },
   getProfessorAnalytics: async () => {
     const response = await api.get("/professor/analytics");
     return response.data.data;
   },
   getAdminAnalytics: async () => {
-    return dashboardService.getProfessorAnalytics();
+    const response = await api.get("/admin/analytics");
+    return response.data.data;
   },
   getProfessorGroups: async () => {
     const response = await api.get("/professor/groups");
     return response.data.data;
   },
   getAdminGroups: async () => {
-    return dashboardService.getProfessorGroups();
+    const response = await api.get("/admin/groups");
+    return response.data.data;
   },
   getProfessorStudents: async () => {
     const response = await api.get("/professor/students");
     return response.data.data;
   },
   getAdminStudents: async () => {
-    return dashboardService.getProfessorStudents();
+    const response = await api.get("/admin/students");
+    return response.data.data;
   },
 };

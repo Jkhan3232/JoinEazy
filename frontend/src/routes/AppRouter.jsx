@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout.jsx";
 import AppShell from "../layouts/AppShell.jsx";
 import { useAuth } from "../hooks/useAuth";
+import { normalizeRole } from "../utils/format";
 import AdminAnalyticsPage from "../pages/admin/AdminAnalyticsPage.jsx";
 import AdminAssignmentsCreatePage from "../pages/admin/AdminAssignmentsCreatePage.jsx";
 import AdminAssignmentsEditPage from "../pages/admin/AdminAssignmentsEditPage.jsx";
@@ -29,9 +30,15 @@ function HomeRedirect() {
     return <Navigate to="/login" replace />;
   }
 
+  const normalizedRole = normalizeRole(user?.role);
+
   return (
     <Navigate
-      to={user.role === "PROFESSOR" ? "/professor/dashboard" : "/student/dashboard"}
+      to={
+        normalizedRole === "PROFESSOR"
+          ? "/professor/dashboard"
+          : "/student/dashboard"
+      }
       replace
     />
   );

@@ -69,8 +69,20 @@ export const formatStatusLabel = (status) => {
   return status;
 };
 
+export const normalizeRole = (role) => {
+  if (!role) {
+    return role;
+  }
+
+  if (role === "ADMIN") {
+    return "PROFESSOR";
+  }
+
+  return role;
+};
+
 export const formatRoleLabel = (role) => {
-  if (role === "PROFESSOR") {
+  if (normalizeRole(role) === "PROFESSOR") {
     return "Professor";
   }
 

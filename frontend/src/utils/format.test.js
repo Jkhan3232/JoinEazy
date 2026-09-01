@@ -4,6 +4,7 @@ import {
   formatRoleLabel,
   formatStatusLabel,
   getStatusTone,
+  normalizeRole,
 } from "./format";
 
 describe("format helpers", () => {
@@ -20,7 +21,9 @@ describe("format helpers", () => {
   });
 
   it("maps roles to readable labels", () => {
+    expect(normalizeRole("ADMIN")).toBe("PROFESSOR");
     expect(formatRoleLabel("PROFESSOR")).toBe("Professor");
+    expect(formatRoleLabel("ADMIN")).toBe("Professor");
     expect(formatRoleLabel("STUDENT")).toBe("Student");
   });
 });

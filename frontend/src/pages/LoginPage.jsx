@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { useAuth } from "../hooks/useAuth";
-import { getErrorMessage } from "../utils/format";
+import { getErrorMessage, normalizeRole } from "../utils/format";
 
 function LoginPage() {
   const { login } = useAuth();
@@ -42,8 +42,9 @@ function LoginPage() {
       const response = await login(form);
       toast.success("Welcome back.");
 
+      const normalizedRole = normalizeRole(response.user.role);
       const fallbackPath =
-        response.user.role === "PROFESSOR"
+        normalizedRole === "PROFESSOR"
           ? "/professor/dashboard"
           : "/student/dashboard";
 

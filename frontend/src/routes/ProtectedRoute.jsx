@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
+import { normalizeRole } from "../utils/format";
 
 function ProtectedRoute({ allowedRoles }) {
   const { isReady, isAuthenticated, user } = useAuth();
@@ -21,9 +22,13 @@ function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (allowedRoles?.length && !allowedRoles.includes(user.role)) {
+  const normalizedRole = normalizeRole(user?.role);
+
+  if (allowedRoles?.length && !allowedRoles.includes(normalizedRole)) {
     const fallbackRoute =
-      user.role === "PROFESSOR" ? "/professor/dashboard" : "/student/dashboard";
+      normalizedRole === "PROFESSOR"
+        ? "/professor/dashboard"
+        : "/student/dashboard";
     return <Navigate to={fallbackRoute} replace />;
   }
 
