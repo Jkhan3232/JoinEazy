@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import CourseCard from "../../components/shared/CourseCard";
 import EmptyState from "../../components/shared/EmptyState";
 import Loader from "../../components/shared/Loader";
@@ -11,25 +13,27 @@ import { dashboardService } from "../../services/dashboardService";
 import { formatDate } from "../../utils/format";
 
 function AdminDashboardPage() {
-  const { data, loading, error } = useAsyncData(
-    async () => {
-      const [dashboard, analytics] = await Promise.all([
-        dashboardService.getAdminDashboard(),
-        dashboardService.getAdminAnalytics(),
-      ]);
-      const courses = await dashboardService.getAdminCourses();
+  const { data, loading, error } = useAsyncData(async () => {
+    const [dashboard, analytics] = await Promise.all([
+      dashboardService.getAdminDashboard(),
+      dashboardService.getAdminAnalytics(),
+    ]);
+    const courses = await dashboardService.getAdminCourses();
 
-      return { dashboard, analytics, courses };
-    },
-    [],
-  );
+    return { dashboard, analytics, courses };
+  }, []);
 
   if (loading) {
     return <Loader label="Loading professor dashboard..." />;
   }
 
   if (error) {
-    return <EmptyState title="Unable to load professor dashboard" description={error} />;
+    return (
+      <EmptyState
+        title="Unable to load professor dashboard"
+        description={error}
+      />
+    );
   }
 
   return (
